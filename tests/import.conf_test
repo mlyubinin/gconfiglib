@@ -1,0 +1,46 @@
+[general]
+
+# Log level - debug or production
+log_level = debug
+
+# Location of the log file
+log_file = /vagrant/log/csv_loader.log
+
+# Number of days to keep the log files, defaults to 30
+log_days_to_keep = 30
+
+# No update - if yes, no changes made to target database
+no_update = no
+
+# Path to data file archive
+file_archive = ./data
+
+[target]
+db_server = test
+database = test
+schema = test
+
+[zookeeper]
+# Zookeeper connection parameters
+# zk_host - host connection string, comma-separated list of host:port pairs
+zk_host = zookeeper:2181
+
+[sources]
+test_date = no
+
+[test_date]
+method = local
+file_dir = /vagrant/test/
+filename = src_downloader_csv_date_
+fileext = .csv
+source_tag = test_date
+csv_header_row = 0
+csv_encoding = utf-8
+csv_sep = ,
+csv_date_field = Date
+dest_table = daily_call_metrics
+start_date = 2014-07-31
+
+[test_date_fields]
+id = [S_ignore, identity, 1, 1, 1]
+day = [Date, date]

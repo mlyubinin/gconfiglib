@@ -1,0 +1,9 @@
+*.pyc
+.DS_Store
+.idea/*
+*.egg-info/
+.eggs
+*.tmp
+/.coverage
+coverage.xml
+nosetests.xml
