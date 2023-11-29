@@ -63,179 +63,120 @@ class TestGConfiglib(unittest.TestCase):
             config.read_config("tests/test_utils_cases").get("no_value", None)
         )
 
+    def test_read_config_double_sign(self):
+        self.assertEqual(
+            config.read_config("tests/test_utils_cases").get("double_sign", None),
+            "value =",
+        )
 
-# def test_read_config_double_sign():
-#     assert (
-#         config.read_config("tests/test_utils_cases").get("double_sign", None)
-#         == "value ="
-#     )
+    def test_read_config_positive(self):
+        self.assertEqual(
+            config.read_config("tests/test_utils_cases").get("key", None), "value"
+        )
 
+    def test_read_config_section_empty(self):
+        self.assertEqual(
+            config.read_config("tests/test_utils_cases").get("empty_section", None), {}
+        )
 
-# def test_read_config_positive():
-#     assert config.read_config("tests/test_utils_cases").get("key", None) == "value"
+    def test_read_config_section_ok(self):
+        self.assertEqual(
+            config.read_config("tests/test_utils_cases")
+            .get("section_1", None)
+            .get("key", None),
+            "value",
+        )
 
+    def test_read_config_list_ok(self):
+        lst = (
+            config.read_config("tests/test_utils_cases")
+            .get("section_1", None)
+            .get("list", None)
+        )
+        print(lst)
+        if len(lst) == 3:
+            if lst[0] == "value1" and lst[1] == "2" and lst[2] == "value3":
+                assert True
+            else:
+                assert False
+        else:
+            assert False
 
-# def test_read_config_section_empty():
-#     assert config.read_config("tests/test_utils_cases").get("empty_section", None) == {}
+    def test_read_config_comments(self):
+        # There is a set number of values in the cases file. The rest are negative scenarios and comments
+        self.assertEqual(len(config.read_config("tests/test_utils_cases")), 4)
 
+    def test_parse_config_line_empty_section(self):
+        self.assertEqual(config.parse_config_line("[ ]"), (0, ""))
 
-# def test_read_config_section_ok():
-#     assert (
-#         config.read_config("tests/test_utils_cases")
-#         .get("section_1", None)
-#         .get("key", None)
-#         == "value"
-#     )
+    def test_initialize_wrong_file(self):
+        os.system('echo "abc" > test_cfg.pkl')
+        with self.assertRaises(Exception) as e:
+            cfg.init("test_cfg.pkl")
+        if os.path.isfile("test_cfg.pkl"):
+            os.system("rm -f test_cfg.pkl")
+        self.assertEqual(
+            str(e.exception), "Could not read configuration file test_cfg.pkl"
+        )
 
+    def test_check_template_invalid_template_node_no_content(self):
+        template = cfg.TemplateNodeFixed("empty_node")
+        with self.assertRaises(ValueError) as e:
+            template.validate(config.ConfigNode("empty_node"))
+        self.assertEqual(
+            str(e.exception), "Template for node empty_node has no attributes"
+        )
 
-# def test_read_config_list_ok():
-#     lst = (
-#         config.read_config("tests/test_utils_cases")
-#         .get("section_1", None)
-#         .get("list", None)
-#     )
-#     print(lst)
-#     if len(lst) == 3:
-#         if lst[0] == "value1" and lst[1] == "2" and lst[2] == "value3":
-#             assert True
-#         else:
-#             assert False
-#     else:
-#         assert False
+    def test_check_template_invalid_template_duplicate_attribute(self):
+        template = cfg.TemplateNodeFixed("some_node")
+        template.add(cfg.TemplateAttributeFixed("attr1"))
+        template.add(cfg.TemplateAttributeFixed("attr2"))
+        with self.assertRaises(ValueError) as e:
+            template.add(config.TemplateAttributeFixed("attr1"))
+        self.assertEqual(
+            str(e.exception),
+            "Attribute or node attr1 can only be added to node some_node once",
+        )
 
+    def test_check_template_invalid_template_invalid_attribute(self):
+        template = cfg.TemplateNodeFixed("some_node")
+        template.add(cfg.TemplateAttributeFixed("attr1"))
+        template.add(cfg.TemplateAttributeFixed("attr2"))
+        with self.assertRaises(ValueError) as e:
+            template.add({"a": 3})
+        self.assertEqual(
+            str(e.exception),
+            "Attempt to add invalid attribute type to some_node template",
+        )
 
-# def test_read_config_comments():
-#     # There is a set number of values in the cases file. The rest are negative scenarios and comments
-#     assert len(config.read_config("tests/test_utils_cases")) == 4
+    def test_check_template_template_ok(self):
+        template = cfg.TemplateNodeFixed("node")
+        template.add(
+            cfg.TemplateAttributeFixed("attr1", optional=False, value_type=int)
+        )
+        subnode = cfg.TemplateNodeFixed("subnode")
+        subnode.add(cfg.TemplateAttributeFixed("subattr"))
+        template.add(subnode)
 
+    def test_check_template_varnode_wrong_attr(self):
+        with self.assertRaises(ValueError) as e:
+            cfg.TemplateNodeVariableAttr(
+                "varnode", cfg.TemplateAttributeFixed("fixedattr")
+            )
+        self.assertEqual(
+            str(e.exception),
+            "Attempt to add invalid attribute type to varnode template. This node can contain only one TemplateAttributeVariable attribute template and nothing else",
+        )
 
-# def test_parse_config_line_empty_section():
-#     assert config.parse_config_line("[ ]") == (0, "")
-
-
-# def test_initialize_zk():
-#     cfg.init("tests/import.conf_test")
-#     if not config._zk_conn:
-#         config._zk_conn = utils.zk_connect("zookeeper://test:test@zookeeper:2181/")
-#     cfg.root().write().zk(path="/gconfiglib/test_config", force=True)
-#     config._cfg_root = None
-#     cfg.init("zookeeper://test:test@zookeeper:2181/gconfiglib/test_config")
-#     assert cfg.get("/target/database") == "test"
-
-
-# def test_zk_hierarchy():
-#     config._cfg_root = None
-
-#     def create_config_template(node):
-#         template = cfg.TemplateNodeFixed("root", optional=False)
-#         n1 = cfg.TemplateNodeFixed("n1")
-#         n11 = cfg.TemplateNodeFixed("n11")
-#         n12 = cfg.TemplateNodeFixed("n12")
-#         n111 = cfg.TemplateNodeFixed("n111", node_type="CN")
-#         n111.add(cfg.TemplateAttributeFixed("attr", value_type=int))
-#         n11.add(n111)
-#         n112 = cfg.TemplateNodeFixed("n112")
-#         n112.add(cfg.TemplateAttributeFixed("attr", value_type=int))
-#         n11.add(n112)
-#         n11.add(cfg.TemplateAttributeFixed("n11_attr", value_type=int))
-#         n121 = cfg.TemplateNodeFixed("n121")
-#         n121.add(cfg.TemplateAttributeFixed("attr", value_type=int))
-#         n12.add(n121)
-#         n122 = cfg.TemplateNodeFixed("n122")
-#         n122.add(cfg.TemplateAttributeFixed("attr", value_type=int))
-#         n12.add(n122)
-#         n1.add(n11)
-#         n1.add(n12)
-#         template.add(n1)
-#         return template
-
-#     cfg.init("tests/zk_hierarchy.json", template_gen=create_config_template)
-#     cfg.root().print_fmt()
-#     cfg.root().write().zk(path="/gconfiglib/test_zk_hierarchy", force=True)
-#     config._cfg_root = None
-#     cfg.init(
-#         "zookeeper://test:test@zookeeper:2181/gconfiglib/test_zk_hierarchy",
-#         template_gen=create_config_template,
-#     )
-#     cfg.root().print_fmt()
-#     cfg.root().write().zk(path="/gconfiglib/test_zk_hierarchy", force=True)
-#     config._cfg_root = None
-#     cfg.init("zookeeper://test:test@zookeeper:2181/gconfiglib/test_zk_hierarchy")
-#     cfg.root().print_fmt()
-#     r = []
-#     r.append(cfg.root().node_type == "AN")
-#     r.append(cfg.root()._get_obj("n1").node_type == "AN")
-#     r.append(cfg.root()._get_obj("n1/n12").node_type == "CN")
-#     r.append(cfg.root()._get_obj("n1/n11/n111").node_type == "CN")
-#     r.append(cfg.root().get("n1/n11/n11_attr") == 1)
-#     print(r)
-#     config._cfg_root = None
-#     cfg.init("tests/import.conf_test")
-#     assert sum(r) == 5
-
-
-# def test_initialize_wrong_file():
-#     os.system('echo "abc" > test_cfg.pkl')
-#     with nose.tools.assert_raises(Exception) as e:
-#         cfg.init("test_cfg.pkl")
-#     if os.path.isfile("test_cfg.pkl"):
-#         os.system("rm -f test_cfg.pkl")
-#     nose.tools.ok_(str(e.exception) == "Could not read configuration file test_cfg.pkl")
-#     cfg.init("tests/import.conf_test")
-
-
-# def test_check_template_invalid_template_node_no_content():
-#     template = cfg.TemplateNodeFixed("empty_node")
-#     with nose.tools.assert_raises_regexp(
-#         ValueError, "Template for node empty_node has no attributes"
-#     ) as e:
-#         template.validate(config.ConfigNode("empty_node"))
-
-
-# def test_check_template_invalid_template_duplicate_attribute():
-#     template = cfg.TemplateNodeFixed("some_node")
-#     template.add(cfg.TemplateAttributeFixed("attr1"))
-#     template.add(cfg.TemplateAttributeFixed("attr2"))
-#     with nose.tools.assert_raises_regexp(
-#         ValueError, "Attribute or node attr1 can only be added to node some_node once"
-#     ) as e:
-#         template.add(config.TemplateAttributeFixed("attr1"))
-
-
-# def test_check_template_invalid_template_invalid_attribute():
-#     template = cfg.TemplateNodeFixed("some_node")
-#     template.add(cfg.TemplateAttributeFixed("attr1"))
-#     template.add(cfg.TemplateAttributeFixed("attr2"))
-#     with nose.tools.assert_raises_regexp(
-#         ValueError, "Attempt to add invalid attribute type to some_node template"
-#     ) as e:
-#         template.add({"a": 3})
-
-
-# def test_check_template_template_ok():
-#     template = cfg.TemplateNodeFixed("node")
-#     template.add(cfg.TemplateAttributeFixed("attr1", optional=False, value_type=int))
-#     subnode = cfg.TemplateNodeFixed("subnode")
-#     subnode.add(cfg.TemplateAttributeFixed("subattr"))
-#     template.add(subnode)
-
-
-# def test_check_template_varnode_wrong_attr():
-#     with nose.tools.assert_raises_regexp(
-#         ValueError,
-#         "Attempt to add invalid attribute type to varnode template. This node can contain only one TemplateAttributeVariable attribute template and nothing else",
-#     ) as e:
-#         cfg.TemplateNodeVariableAttr("varnode", cfg.TemplateAttributeFixed("fixedattr"))
-
-
-# def test_validate_missing_mandatory_attr():
-#     template = cfg.TemplateNodeFixed("node1")
-#     template.add(cfg.TemplateAttributeFixed("attr", optional=False))
-#     with nose.tools.assert_raises_regexp(
-#         ValueError,
-#         "Mandatory parameter /node1/attr has not been set, and has no default value",
-#     ) as e:
-#         template.validate(cfg.ConfigNode("node1"))
+    def test_validate_missing_mandatory_attr(self):
+        template = cfg.TemplateNodeFixed("node1")
+        template.add(cfg.TemplateAttributeFixed("attr", optional=False))
+        with self.assertRaises(ValueError) as e:
+            template.validate(cfg.ConfigNode("node1"))
+        self.assertEqual(
+            str(e.exception),
+            "Mandatory parameter /node1/attr has not been set, and has no default value",
+        )
 
 
 # def test_validate_section_missing():
@@ -875,3 +816,63 @@ class TestGConfiglib(unittest.TestCase):
 #     if os.path.isfile("test_cfg.json"):
 #         os.system("rm -f test_cfg.json")
 #     assert cfg.get("/general/log_level") == new_config.get("/general/log_level")
+
+# def test_initialize_zk(self):
+#     cfg.init("tests/import.conf_test")
+#     if not config._zk_conn:
+#         config._zk_conn = utils.zk_connect("zookeeper://test:test@zookeeper:2181/")
+#     cfg.root().write().zk(path="/gconfiglib/test_config", force=True)
+#     config._cfg_root = None
+#     cfg.init("zookeeper://test:test@zookeeper:2181/gconfiglib/test_config")
+#     self.assertEqual(cfg.get("/target/database"), "test")
+
+
+# def test_zk_hierarchy():
+#     config._cfg_root = None
+
+#     def create_config_template(node):
+#         template = cfg.TemplateNodeFixed("root", optional=False)
+#         n1 = cfg.TemplateNodeFixed("n1")
+#         n11 = cfg.TemplateNodeFixed("n11")
+#         n12 = cfg.TemplateNodeFixed("n12")
+#         n111 = cfg.TemplateNodeFixed("n111", node_type="CN")
+#         n111.add(cfg.TemplateAttributeFixed("attr", value_type=int))
+#         n11.add(n111)
+#         n112 = cfg.TemplateNodeFixed("n112")
+#         n112.add(cfg.TemplateAttributeFixed("attr", value_type=int))
+#         n11.add(n112)
+#         n11.add(cfg.TemplateAttributeFixed("n11_attr", value_type=int))
+#         n121 = cfg.TemplateNodeFixed("n121")
+#         n121.add(cfg.TemplateAttributeFixed("attr", value_type=int))
+#         n12.add(n121)
+#         n122 = cfg.TemplateNodeFixed("n122")
+#         n122.add(cfg.TemplateAttributeFixed("attr", value_type=int))
+#         n12.add(n122)
+#         n1.add(n11)
+#         n1.add(n12)
+#         template.add(n1)
+#         return template
+
+#     cfg.init("tests/zk_hierarchy.json", template_gen=create_config_template)
+#     cfg.root().print_fmt()
+#     cfg.root().write().zk(path="/gconfiglib/test_zk_hierarchy", force=True)
+#     config._cfg_root = None
+#     cfg.init(
+#         "zookeeper://test:test@zookeeper:2181/gconfiglib/test_zk_hierarchy",
+#         template_gen=create_config_template,
+#     )
+#     cfg.root().print_fmt()
+#     cfg.root().write().zk(path="/gconfiglib/test_zk_hierarchy", force=True)
+#     config._cfg_root = None
+#     cfg.init("zookeeper://test:test@zookeeper:2181/gconfiglib/test_zk_hierarchy")
+#     cfg.root().print_fmt()
+#     r = []
+#     r.append(cfg.root().node_type == "AN")
+#     r.append(cfg.root()._get_obj("n1").node_type == "AN")
+#     r.append(cfg.root()._get_obj("n1/n12").node_type == "CN")
+#     r.append(cfg.root()._get_obj("n1/n11/n111").node_type == "CN")
+#     r.append(cfg.root().get("n1/n11/n11_attr") == 1)
+#     print(r)
+#     config._cfg_root = None
+#     cfg.init("tests/import.conf_test")
+#     assert sum(r) == 5

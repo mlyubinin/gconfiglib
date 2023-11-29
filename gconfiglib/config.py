@@ -516,7 +516,7 @@ class TemplateNodeFixed(TemplateNodeBase):
         # If None, pass it back without further checks (missing optional node was not created)
         if node is None:
             return None
-        for attr_t_name, attr_t in self.attributes.iteritems():
+        for attr_t_name, attr_t in self.attributes.items():
             if isinstance(attr_t, TemplateNodeSet):
                 # For Node Set, need to pass in the full parent level object
                 node = attr_t.validate(node)
@@ -603,7 +603,7 @@ class TemplateNodeVariableAttr(TemplateNodeBase):
             return None
         if len(node.attributes) == 0 and not self.optional:
             raise ValueError("Node %s cannot be empty" % node.get_path())
-        for attr_name, attr_value in node.attributes.iteritems():
+        for attr_name, attr_value in node.attributes.items():
             new_value = self.attributes["variable_attribute"].validate(
                 attr_value, attr_name
             )
@@ -1047,7 +1047,7 @@ class ConfigNode(object):
                         "ConfigNode.add only accepts single ConfigNode, ConfigAttribute, or a list of ConfigNodes and/or ConfigAttributes"
                     )
         elif isinstance(attributes, dict):
-            for a_key, a_value in attributes.iteritems():
+            for a_key, a_value in attributes.items():
                 if isinstance(a_value, dict):
                     self.attributes[a_key] = ConfigNode(
                         a_key, parent=self, attributes=a_value
@@ -1092,7 +1092,7 @@ class ConfigNode(object):
         :return: Node's content converted to OrderedDict
         """
         result = collections.OrderedDict()
-        for attribute_name, attribute_value in self.attributes.iteritems():
+        for attribute_name, attribute_value in self.attributes.items():
             result[attribute_name] = attribute_value._to_dict()
         return result
 
@@ -1134,7 +1134,7 @@ class ConfigNode(object):
             result = self._get_obj(path).get_attributes()
         else:
             result = collections.OrderedDict()
-            for attribute_name, attribute_value in self.attributes.iteritems():
+            for attribute_name, attribute_value in self.attributes.items():
                 if isinstance(attribute_value, ConfigAttribute):
                     result[attribute_name] = attribute_value._to_dict()
         return result
@@ -1207,7 +1207,7 @@ class ConfigNode(object):
 
     def _search_here(self, name, criteria, depth, recursive):
         results = []
-        for a_name, attribute in self.attributes.iteritems():
+        for a_name, attribute in self.attributes.items():
             if isinstance(attribute, ConfigNode):
                 if recursive:
                     results += [

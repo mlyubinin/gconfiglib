@@ -68,7 +68,7 @@ def json_decoder(payload):
     :return: OrderedDict
     """
     payload = collections.OrderedDict(payload)
-    for key, value in payload.iteritems():
+    for key, value in payload.items():
         if isinstance(value, basestring):
             try:
                 # We keep single number as a string, but attempt to convert something that looks like a date
