@@ -8,6 +8,8 @@ from gconfiglib import config, utils
 
 # sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# Host for Zookeeper tests
+zookeeper_host = "localhost"
 
 # used for immutability test
 global_val = 5
@@ -817,63 +819,65 @@ class TestGConfiglib(unittest.TestCase):
             cfg.get("/general/log_level"), new_config.get("/general/log_level")
         )
 
+    def test_initialize_zk(self):
+        cfg.init("tests/import.conf_test")
+        if not config._zk_conn:
+            config._zk_conn = utils.zk_connect(
+                f"zookeeper://test:test@{zookeeper_host}:2181/"
+            )
+        cfg.root().write().zk(path="/gconfiglib/test_config", force=True)
+        config._cfg_root = None
+        cfg.init(f"zookeeper://test:test@{zookeeper_host}:2181/gconfiglib/test_config")
+        self.assertEqual(cfg.get("/target/database"), "test")
 
-# def test_initialize_zk(self):
-#     cfg.init("tests/import.conf_test")
-#     if not config._zk_conn:
-#         config._zk_conn = utils.zk_connect("zookeeper://test:test@zookeeper:2181/")
-#     cfg.root().write().zk(path="/gconfiglib/test_config", force=True)
-#     config._cfg_root = None
-#     cfg.init("zookeeper://test:test@zookeeper:2181/gconfiglib/test_config")
-#     self.assertEqual(cfg.get("/target/database"), "test")
+    def test_zk_hierarchy(self):
+        config._cfg_root = None
 
+        def create_config_template(node):
+            template = cfg.TemplateNodeFixed("root", optional=False)
+            n1 = cfg.TemplateNodeFixed("n1")
+            n11 = cfg.TemplateNodeFixed("n11")
+            n12 = cfg.TemplateNodeFixed("n12")
+            n111 = cfg.TemplateNodeFixed("n111", node_type="CN")
+            n111.add(cfg.TemplateAttributeFixed("attr", value_type=int))
+            n11.add(n111)
+            n112 = cfg.TemplateNodeFixed("n112")
+            n112.add(cfg.TemplateAttributeFixed("attr", value_type=int))
+            n11.add(n112)
+            n11.add(cfg.TemplateAttributeFixed("n11_attr", value_type=int))
+            n121 = cfg.TemplateNodeFixed("n121")
+            n121.add(cfg.TemplateAttributeFixed("attr", value_type=int))
+            n12.add(n121)
+            n122 = cfg.TemplateNodeFixed("n122")
+            n122.add(cfg.TemplateAttributeFixed("attr", value_type=int))
+            n12.add(n122)
+            n1.add(n11)
+            n1.add(n12)
+            template.add(n1)
+            return template
 
-# def test_zk_hierarchy(self):
-#     config._cfg_root = None
-
-#     def create_config_template(node):
-#         template = cfg.TemplateNodeFixed("root", optional=False)
-#         n1 = cfg.TemplateNodeFixed("n1")
-#         n11 = cfg.TemplateNodeFixed("n11")
-#         n12 = cfg.TemplateNodeFixed("n12")
-#         n111 = cfg.TemplateNodeFixed("n111", node_type="CN")
-#         n111.add(cfg.TemplateAttributeFixed("attr", value_type=int))
-#         n11.add(n111)
-#         n112 = cfg.TemplateNodeFixed("n112")
-#         n112.add(cfg.TemplateAttributeFixed("attr", value_type=int))
-#         n11.add(n112)
-#         n11.add(cfg.TemplateAttributeFixed("n11_attr", value_type=int))
-#         n121 = cfg.TemplateNodeFixed("n121")
-#         n121.add(cfg.TemplateAttributeFixed("attr", value_type=int))
-#         n12.add(n121)
-#         n122 = cfg.TemplateNodeFixed("n122")
-#         n122.add(cfg.TemplateAttributeFixed("attr", value_type=int))
-#         n12.add(n122)
-#         n1.add(n11)
-#         n1.add(n12)
-#         template.add(n1)
-#         return template
-
-#     cfg.init("tests/zk_hierarchy.json", template_gen=create_config_template)
-#     cfg.root().print_fmt()
-#     cfg.root().write().zk(path="/gconfiglib/test_zk_hierarchy", force=True)
-#     config._cfg_root = None
-#     cfg.init(
-#         "zookeeper://test:test@zookeeper:2181/gconfiglib/test_zk_hierarchy",
-#         template_gen=create_config_template,
-#     )
-#     cfg.root().print_fmt()
-#     cfg.root().write().zk(path="/gconfiglib/test_zk_hierarchy", force=True)
-#     config._cfg_root = None
-#     cfg.init("zookeeper://test:test@zookeeper:2181/gconfiglib/test_zk_hierarchy")
-#     cfg.root().print_fmt()
-#     r = []
-#     r.append(cfg.root().node_type == "AN")
-#     r.append(cfg.root()._get_obj("n1").node_type == "AN")
-#     r.append(cfg.root()._get_obj("n1/n12").node_type == "CN")
-#     r.append(cfg.root()._get_obj("n1/n11/n111").node_type == "CN")
-#     r.append(cfg.root().get("n1/n11/n11_attr") == 1)
-#     print(r)
-#     config._cfg_root = None
-#     cfg.init("tests/import.conf_test")
-#     assert sum(r) == 5
+        cfg.init("tests/zk_hierarchy.json", template_gen=create_config_template)
+        cfg.root().print_fmt()
+        cfg.root().write().zk(path="/gconfiglib/test_zk_hierarchy", force=True)
+        config._cfg_root = None
+        cfg.init(
+            f"zookeeper://test:test@{zookeeper_host}:2181/gconfiglib/test_zk_hierarchy",
+            template_gen=create_config_template,
+        )
+        cfg.root().print_fmt()
+        cfg.root().write().zk(path="/gconfiglib/test_zk_hierarchy", force=True)
+        config._cfg_root = None
+        cfg.init(
+            f"zookeeper://test:test@{zookeeper_host}:2181/gconfiglib/test_zk_hierarchy"
+        )
+        cfg.root().print_fmt()
+        r = []
+        r.append(cfg.root().node_type == "AN")
+        r.append(cfg.root()._get_obj("n1").node_type == "AN")
+        r.append(cfg.root()._get_obj("n1/n12").node_type == "CN")
+        r.append(cfg.root()._get_obj("n1/n11/n111").node_type == "CN")
+        r.append(cfg.root().get("n1/n11/n11_attr") == 3)
+        print(r)
+        config._cfg_root = None
+        cfg.init("tests/import.conf_test")
+        self.assertEqual(sum(r), 5)

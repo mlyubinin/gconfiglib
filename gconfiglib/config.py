@@ -894,14 +894,14 @@ class ConfigWriter(object):
                     # need to make sure there are no "orphans" from previous version of the configuration
                     _zk_update = False
                     _zk_conn.delete(path, recursive=True)
-                    _zk_conn.create(path, content, makepath=True)
+                    _zk_conn.create(path, content.encode(), makepath=True)
                     _zk_update = True
                 else:
                     raise IOError(
                         "Failed to save configuration - path already exists and force attribute is not set"
                     )
             else:
-                _zk_conn.create(path, content, makepath=True)
+                _zk_conn.create(path, content.encode(), makepath=True)
             if self.cfg_obj.node_type == "AN":
                 for node_name in self.cfg_obj.list_nodes():
                     _zk_update = False
