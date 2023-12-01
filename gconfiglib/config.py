@@ -745,7 +745,7 @@ class ConfigReader(object):
         :return: ConfigNode with file contents parsed into nodes and attributes
         """
         if self._check_file(filename):
-            with open(filename, "rb") as f:
+            with open(filename, "r") as f:
                 return ConfigNode(
                     "root",
                     attributes=json.load(f, object_pairs_hook=utils.json_decoder),
@@ -820,7 +820,7 @@ class ConfigWriter(object):
             self._check_file(filename, force)
         except IOError as e:
             raise IOError("Failed to open the file %s" % filename, e)
-        with open(filename, mode="wb") as f:
+        with open(filename, mode="w") as f:
             for node in self.cfg_obj.attributes.values():
                 if isinstance(node, ConfigAttribute):
                     raise ValueError(
@@ -844,7 +844,7 @@ class ConfigWriter(object):
             self._check_file(filename, force)
         except IOError as e:
             raise IOError("Failed to open the file %s" % filename, e)
-        with open(filename, mode="wb") as f:
+        with open(filename, mode="w") as f:
             json.dump(
                 self.cfg_obj.get(),
                 f,

@@ -69,7 +69,7 @@ def json_decoder(payload):
     """
     payload = collections.OrderedDict(payload)
     for key, value in payload.items():
-        if isinstance(value, basestring):
+        if isinstance(value, str):
             try:
                 # We keep single number as a string, but attempt to convert something that looks like a date
                 float(value)
