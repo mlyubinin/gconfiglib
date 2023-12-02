@@ -2,12 +2,22 @@
 # Author: Michael Lyubinin
 # Contact: michael@lyubinin.com
 
-""" Enhanced Configuration library """
+""" Enhanced Configuration library. """
 
 import logging
 
-from config import get, set, root, init, TemplateAttributeFixed, TemplateAttributeVariable, \
-    TemplateNodeFixed, TemplateNodeVariableAttr, TemplateNodeSet, ConfigNode, ConfigAttribute
+from .config import (
+    ConfigAttribute,
+    ConfigNode,
+    TemplateAttributeFixed,
+    TemplateAttributeVariable,
+    TemplateNodeFixed,
+    TemplateNodeSet,
+    TemplateNodeVariableAttr,
+    get,
+    init,
+    root,
+    set,
+)
 
-logging.getLogger('gconfiglib').addHandler(logging.NullHandler())
-
+logging.getLogger("gconfiglib").addHandler(logging.NullHandler())

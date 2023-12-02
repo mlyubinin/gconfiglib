@@ -4,6 +4,8 @@
 *.egg-info/
 .eggs
 *.tmp
+build/**
 /.coverage
 coverage.xml
+cov.xml
 nosetests.xml
