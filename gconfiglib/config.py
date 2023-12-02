@@ -2,7 +2,7 @@
 # Author: Michael Lyubinin
 # Contact: michael@lyubinin.com
 
-""" Gconfiglib enhanced configuration library """
+""" Gconfiglib enhanced configuration library. """
 
 import argparse
 import collections
@@ -14,13 +14,10 @@ import os
 import sys
 from urllib import parse as urlparse
 
-from kazoo.client import KazooClient  # pylint: disable=F0401
-from kazoo.security import make_digest_acl  # pylint: disable=F0401
+from kazoo.client import KazooClient
+from kazoo.security import make_digest_acl
 
 from gconfiglib import utils
-
-# pylint: disable=W0604
-# pylint: disable=C0103
 
 # Internal module variables. Values are assigned at runtime
 # Root configuration node
@@ -62,9 +59,7 @@ def root():
     return _cfg_root
 
 
-def init(
-    filename=None, default_paths=None, default_env_path=None, template_gen=None
-):  # pylint: disable=R0912
+def init(filename=None, default_paths=None, default_env_path=None, template_gen=None):
     """
     Initialize Config object, selecting first viable candidate from candidate hierarchy.
     Hierarchy (in order of preference):
@@ -179,7 +174,7 @@ def init(
             else:
                 # Try to read .ini format file
                 _cfg_root = ConfigNode.read().cfg(fname)
-        except:  # pylint: disable=W0702
+        except:
             if filename and filename == fname:
                 raise Exception("Could not read configuration file " + fname)
             else:
@@ -201,7 +196,7 @@ def init(
         raise Exception("Could not initialize configuration")
 
 
-class TemplateBase(object):  # pylint: disable=R0903
+class TemplateBase(object):
     """
     Common elements for all template objects
     """
@@ -224,7 +219,7 @@ class TemplateAttributeBase(TemplateBase):
         validator=None,
         default_value=None,
         description=None,
-    ):  # pylint: disable=R0913
+    ):
         """
         :param optional: Is this attribute optional (True) or mandatory (False)
         :param value_type: Value type (int, str, etc.)
@@ -246,15 +241,11 @@ class TemplateAttributeBase(TemplateBase):
         """
         if value is None:
             value = ConfigAttribute(name, self.default_value)
-        elif (
-            value.value is not None and type(value.value) != self.value_type
-        ):  # pylint: disable=C0123
+        elif value.value is not None and type(value.value) != self.value_type:
             try:
                 value.value = self.value_type(value.value)
-            except:  # pylint: disable=W0702
-                if (
-                    self.value_type == dt.date and type(value.value) == dt.datetime
-                ):  # pylint: disable=C0123
+            except:
+                if self.value_type == dt.date and type(value.value) == dt.datetime:
                     value.value = value.value.date()
                 else:
                     if value.value is not None and value.value != "":
@@ -291,7 +282,7 @@ class TemplateAttributeBase(TemplateBase):
         else:
             return value
 
-    def sample(self, format="JSON"):  # pylint: disable=W0622
+    def sample(self, format="JSON"):
         """
         Generate a line for sample configuration file
         :param format: JSON or TEXT
@@ -326,7 +317,7 @@ class TemplateAttributeFixed(TemplateAttributeBase):
         validator=None,
         default_value=None,
         description=None,
-    ):  # pylint: disable=R0913
+    ):
         """
         :param name: Attribute name
         :param optional: Is this attribute optional (True) or mandatory (False)
@@ -341,7 +332,7 @@ class TemplateAttributeFixed(TemplateAttributeBase):
             optional, value_type, validator, default_value, description
         )
 
-    def validate(self, value):  # pylint: disable=W0221
+    def validate(self, value):
         """
         Validate an attribute
         :param value: Value to be validated
@@ -384,7 +375,7 @@ class TemplateNodeBase(TemplateBase):
 
     def __init__(
         self, name, optional=True, validator=None, description=None, node_type=None
-    ):  # pylint: disable=R0913
+    ):
         """
         :param name: Node name
         :param optional: Is this node optional (True) or mandatory (False)
@@ -436,7 +427,7 @@ class TemplateNodeBase(TemplateBase):
             node.set_node_type(self.node_type)
         return node
 
-    def sample(self, format="JSON"):  # pylint: disable=W0622
+    def sample(self, format="JSON"):
         """
         Generate a line for sample configuration file
         :param format: JSON or TEXT
@@ -475,7 +466,7 @@ class TemplateNodeFixed(TemplateNodeBase):
 
     def __init__(
         self, name, optional=True, validator=None, description=None, node_type=None
-    ):  # pylint: disable=R0913
+    ):
         """
         :param name: Node name
         :param optional: Is this node optional (True) or mandatory (False)
@@ -533,7 +524,7 @@ class TemplateNodeFixed(TemplateNodeBase):
                     test_attr = None
 
                 new_value = attr_t.validate(
-                    node._get_obj(attr_t_name)  # pylint: disable=W0212
+                    node._get_obj(attr_t_name)
                     if attr_t_name in [x.name for x in node.attributes.values()]
                     else test_attr
                 )
@@ -571,7 +562,7 @@ class TemplateNodeVariableAttr(TemplateNodeBase):
         validator=None,
         description=None,
         node_type=None,
-    ):  # pylint: disable=R0913
+    ):
         """
         :param name: Node name
         :param attr: Attribute template. All attributes in VariableAttr node must be of the same type
@@ -666,9 +657,7 @@ class TemplateNodeSet(TemplateNodeBase):
                         "Optional node %s is missing in %s" % (name, node.get_path()),
                     )
                     continue
-            new_value = self.attributes["node"].validate(
-                node._get_obj(name)
-            )  # pylint: disable=W0212
+            new_value = self.attributes["node"].validate(node._get_obj(name))
             if isinstance(new_value, ConfigAttribute) and new_value.value is not None:
                 node.add(new_value)
             elif isinstance(new_value, ConfigNode) and len(new_value.attributes) > 0:
@@ -678,7 +667,7 @@ class TemplateNodeSet(TemplateNodeBase):
         else:
             return node
 
-    def sample(self, format="JSON"):  # pylint: disable=W0622
+    def sample(self, format="JSON"):
         """
         Generate a line for sample configuration file
         :param format: JSON or TEXT
@@ -759,7 +748,7 @@ class ConfigReader(object):
         :param name: name to give root node (defaults to 'root')
         :return: ConfigNode
         """
-        global _zk_conn  # pylint: disable=W0602
+        global _zk_conn
 
         logger = logging.getLogger("gconfiglib")
 
@@ -854,13 +843,13 @@ class ConfigWriter(object):
                 separators=(",", ": "),
             )
 
-    def zk(self, path=None, force=False):  # pylint: disable=R0912
+    def zk(self, path=None, force=False):
         """
         Writer for Zookeeper
         :param path: path to root node in Zookeeper
         :param force: Force file overwrite (True/False)
         """
-        global _zk_conn  # pylint: disable=W0602
+        global _zk_conn
         global _zk_update
         if not _zk_conn:
             raise IOError("No open Zookeeper connection")
@@ -907,7 +896,7 @@ class ConfigWriter(object):
                     _zk_update = False
                     self.cfg_obj._get_obj(node_name).write().zk(
                         path + "/" + node_name, force=force
-                    )  # pylint: disable=W0212
+                    )
                     _zk_update = True
             _zk_update = False
 
@@ -1017,7 +1006,7 @@ class ConfigNode(object):
             if isinstance(template, TemplateNodeFixed) and template.name == "root":
                 self._copy(template.validate(self))
 
-    def add(self, attributes):  # pylint: disable=R0912
+    def add(self, attributes):
         """
         Add content to a node
         :param attributes: Can be ConfigNode, ConfigAttribute, a dictionary, or a list of any of the above
@@ -1026,7 +1015,7 @@ class ConfigNode(object):
             attributes, ConfigAttribute
         ):
             self.attributes[attributes.name] = attributes
-            attributes._set_parent(self)  # pylint: disable=W0212
+            attributes._set_parent(self)
         elif isinstance(attributes, list):
             for attribute in attributes:
                 if isinstance(attribute, ConfigNode) or isinstance(
@@ -1084,7 +1073,7 @@ class ConfigNode(object):
         self.depth = parent_node.depth + 1
         for child in self.attributes.values():
             if isinstance(child, ConfigNode):
-                child._set_parent(self)  # pylint: disable=W0212
+                child._set_parent(self)
 
     def _to_dict(self):
         """

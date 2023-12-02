@@ -2,18 +2,18 @@
 # Author: Michael Lyubinin
 # Contact: michael@lyubinin.com
 
-""" Misc utility functions used by gconfiglib """
+""" Misc utility functions used by gconfiglib."""
 
 import collections
 import datetime as dt
 import logging
 from urllib import parse as urlparse
 
-import kazoo.exceptions  # pylint: disable=F0401
-import kazoo.handlers.threading  # pylint: disable=F0401
+import kazoo.exceptions
+import kazoo.handlers.threading
 import pandas as pd
-from kazoo.client import KazooClient  # pylint: disable=F0401
-from kazoo.security import make_digest_acl  # pylint: disable=F0401
+from kazoo.client import KazooClient
+from kazoo.security import make_digest_acl
 
 
 def zk_connect(uri):

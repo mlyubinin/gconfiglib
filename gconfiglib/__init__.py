@@ -2,7 +2,7 @@
 # Author: Michael Lyubinin
 # Contact: michael@lyubinin.com
 
-""" Enhanced Configuration library """
+""" Enhanced Configuration library. """
 
 import logging
 
