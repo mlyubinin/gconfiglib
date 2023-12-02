@@ -7,4 +7,5 @@
 build/**
 /.coverage
 coverage.xml
+cov.xml
 nosetests.xml
