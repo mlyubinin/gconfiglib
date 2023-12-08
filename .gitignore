@@ -5,6 +5,7 @@
 .eggs
 *.tmp
 build/**
+typings/**
 /.coverage
 coverage.xml
 cov.xml
