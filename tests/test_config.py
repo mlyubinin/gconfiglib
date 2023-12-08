@@ -113,13 +113,10 @@ class TestGConfiglib(unittest.TestCase):
 
     def test_initialize_wrong_file(self):
         os.system('echo "abc" > test_cfg.pkl')
-        with self.assertRaises(Exception) as e:
+        with self.assertRaisesRegex(Exception, "Could not read configuration file"):
             cfg.init("test_cfg.pkl")
         if os.path.isfile("test_cfg.pkl"):
             os.system("rm -f test_cfg.pkl")
-        self.assertEqual(
-            str(e.exception), "Could not read configuration file test_cfg.pkl"
-        )
 
     def test_check_template_invalid_template_node_no_content(self):
         template = cfg.TemplateNodeFixed("empty_node")
