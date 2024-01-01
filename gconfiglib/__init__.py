@@ -10,18 +10,13 @@
 
 import logging
 
-from .config import (
-    ConfigAttribute,
-    ConfigNode,
-    TemplateAttributeFixed,
-    TemplateAttributeVariable,
-    TemplateNodeFixed,
-    TemplateNodeSet,
-    TemplateNodeVariableAttr,
-    get,
-    init,
-    root,
-    set,
-)
+from .config_attribute import ConfigAttribute
+from .config_node import ConfigNode
+from .config_root import ConfigRoot
+from .template_attr_fixed import TemplateAttributeFixed
+from .template_attr_variable import TemplateAttributeVariable
+from .template_node_fixed import TemplateNodeFixed
+from .template_node_set import TemplateNodeSet
+from .template_node_variable import TemplateNodeVariableAttr
 
 logging.getLogger("gconfiglib").addHandler(logging.NullHandler())

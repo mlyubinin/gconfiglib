@@ -7,5 +7,10 @@
         "tests"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "launch": {
+        "version": "0.2.0",
+        "configurations": [],
+        "compounds": []
+    }
 }
