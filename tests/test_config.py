@@ -6,7 +6,6 @@ import unittest
 
 import gconfiglib as cfg
 import gconfiglib.config_reader as cfg_reader
-import gconfiglib.globals as glb
 from gconfiglib import config, utils
 from gconfiglib.config_root import ConfigRoot
 from gconfiglib.enums import Fmt, NodeType
@@ -834,10 +833,9 @@ class TestGConfiglib(unittest.TestCase):
         )
 
     def test_initialize_zk(self):
-        if not glb.zk_conn:
-            glb.zk_conn = utils.zk_connect(
-                f"zookeeper://test:test@{ZOOKEEPER_HOST}:2181/"
-            )
+        if not self.cfg.zk_conn:
+            self.cfg.zk_uri = f"zookeeper://test:test@{ZOOKEEPER_HOST}:2181/"
+            self.cfg.zk_conn = utils.zk_connect(self.cfg.zk_uri)
         self.cfg.write().zk(path="/gconfiglib/test_config", force=True)
         cfg1 = ConfigRoot(
             f"zookeeper://test:test@{ZOOKEEPER_HOST}:2181/gconfiglib/test_config"
@@ -874,6 +872,8 @@ class TestGConfiglib(unittest.TestCase):
             "tests/zk_hierarchy.json", template_gen=create_config_template
         )
         print(cfg1)
+        cfg1.zk_uri = f"zookeeper://test:test@{ZOOKEEPER_HOST}:2181/"
+        cfg1.zk_conn = utils.zk_connect(cfg1.zk_uri)
         cfg1.write().zk(path="/gconfiglib/test_zk_hierarchy", force=True)
         cfg2 = cfg.ConfigRoot(
             f"zookeeper://test:test@{ZOOKEEPER_HOST}:2181/gconfiglib/test_zk_hierarchy",

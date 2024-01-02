@@ -5,7 +5,8 @@ import os
 from typing import Callable, List, Optional, Type
 from urllib import parse as urlparse
 
-import gconfiglib.globals as glb
+from kazoo.client import KazooClient
+
 from gconfiglib import utils
 from gconfiglib.config_node import ConfigNode
 from gconfiglib.config_reader import ConfigReader
@@ -49,6 +50,9 @@ class ConfigRoot(ConfigNode):
 
         """
 
+        self.zk_conn: Optional[KazooClient] = None
+        self.zk_update: bool = False
+        self.zk_uri: str = ""
         # Form candidate list
         candidate_list: List[str] = []
         if filename:
@@ -64,14 +68,15 @@ class ConfigRoot(ConfigNode):
                 try:
                     candidate_uri = urlparse.urlparse(fname)
                     if candidate_uri.scheme == "zookeeper":
-                        if not glb.zk_conn:
-                            glb.zk_conn = utils.zk_connect(fname)
-                        self._copy(ConfigReader().zk(candidate_uri.path))
+                        self.zk_uri = f"{candidate_uri.scheme}://{candidate_uri.username}:{candidate_uri.password}@{candidate_uri.hostname}:{candidate_uri.port}/"
+                        if not self.zk_conn:
+                            self.zk_conn = utils.zk_connect(fname)
+                        self._copy(self.read().zk(self.zk_conn, candidate_uri.path))
                         if hasattr(self, "attributes") and len(self.attributes) > 0:
-                            glb.zk_update = True
+                            self.zk_update = True
 
                             # Set data watch
-                            @glb.zk_conn.DataWatch(self.zk_path)
+                            @self.zk_conn.DataWatch(self.zk_path)
                             def cfg_refresh(data, stat):
                                 """
                                 Hook to refresh configuration object when data in Zookeeper node changes
@@ -79,9 +84,11 @@ class ConfigRoot(ConfigNode):
                                 :param stat: Zookeeper statistics object, used to get version
                                 """
 
-                                if not glb.zk_update:
-                                    glb.zk_update = True
-                                    self._copy(ConfigReader().zk(self.zk_path))
+                                if not self.zk_update:
+                                    self.zk_update = True
+                                    self._copy(
+                                        self.read().zk(self.zk_conn, self.zk_path)
+                                    )
                                     if template_gen:
                                         # Validate new configuration
                                         template = template_gen(self)
@@ -94,24 +101,26 @@ class ConfigRoot(ConfigNode):
                                         "Refreshing configuration to version %s",
                                         stat.version,
                                     )
-                                    glb.zk_update = False
+                                    self.zk_update = False
 
-                            glb.zk_update = False
+                            self.zk_update = False
 
                             # Set child watches
                             if self.node_type == NodeType.AN:
-                                glb.zk_update = True
+                                self.zk_update = True
 
-                                @glb.zk_conn.ChildrenWatch(self.zk_path)
+                                @self.zk_conn.ChildrenWatch(self.zk_path)
                                 def cfg_child_refresh(children):
                                     """
                                     Hook to refresh configuration object when data in Zookeeper child nodes changes
                                     :param children: Not used, required by Zookeeper API
                                     """
 
-                                    if not glb.zk_update:
-                                        glb.zk_update = True
-                                        self._copy(ConfigReader().zk(self.zk_path))
+                                    if not self.zk_update:
+                                        self.zk_update = True
+                                        self._copy(
+                                            self.read().zk(self.zk_conn, self.zk_path)
+                                        )
                                         if template_gen:
                                             # Validate new configuration
                                             template = template_gen(self)
@@ -119,16 +128,16 @@ class ConfigRoot(ConfigNode):
                                         logger.debug(
                                             "Refreshing configuration due to chile node changes",
                                         )
-                                        glb.zk_update = False
+                                        self.zk_update = False
 
-                                glb.zk_update = False
-                            glb.zk_update = False
+                                self.zk_update = False
+                            self.zk_update = False
 
                     elif len(fname) > 5 and fname[-5:] == ".json":
-                        self._copy(ConfigReader().json(fname))
+                        self._copy(self.read().json(fname))
                         self.set_node_type(NodeType.CN)
                     else:
-                        self._copy(ConfigReader().cfg(fname))
+                        self._copy(self.read().cfg(fname))
                         self.set_node_type(NodeType.CN)
                 except:  # noqa: E722
                     continue
@@ -155,8 +164,7 @@ class ConfigRoot(ConfigNode):
             logger.critical("Could not initialize configuration")
             raise ValueError("Could not initialize configuration")
 
-    @staticmethod
-    def read() -> ConfigReader:
+    def read(self) -> ConfigReader:
         """
         Generates a reader for this node
         :return: ConfigReader object

@@ -214,6 +214,16 @@ class ConfigNode(ConfigNodeABC):
                     result[attribute_name] = attribute_value._to_dict()
         return result
 
+    def get_root(self) -> "ConfigNode":
+        """Get the configuration root object
+
+        Returns:
+            ConfigNode: root configuration object
+        """
+        if self.parent:
+            return self.parent.get_root()
+        return self
+
     def set(self, path: str, value: Any) -> None:
         """
         Add or update content

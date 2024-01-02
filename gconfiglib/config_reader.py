@@ -6,7 +6,8 @@ import os
 from collections import OrderedDict
 from typing import List, Optional, Tuple
 
-import gconfiglib.globals as glb
+from kazoo.client import KazooClient
+
 from gconfiglib import utils
 from gconfiglib.config_node import ConfigNode
 from gconfiglib.enums import NodeType
@@ -46,7 +47,9 @@ class ConfigReader:
         return None
 
     @staticmethod
-    def zk(path: str, name: str = "root") -> Optional[ConfigNode]:
+    def zk(
+        connection: Optional[KazooClient], path: str, name: str = "root"
+    ) -> Optional[ConfigNode]:
         """
         Reader for Zookeeper
         :param path: path to root node in Zookeeper
@@ -54,17 +57,17 @@ class ConfigReader:
         :return: ConfigNode
         """
 
-        if not glb.zk_conn:
+        if not connection:
             raise IOError("No open Zookeeper connection")
-        if not glb.zk_conn.exists(path):
+        if not connection.exists(path):
             logger.error("Path %s does not exist", path)
         else:
-            children: Optional[List[str]] = glb.zk_conn.get_children(path)
+            children: Optional[List[str]] = connection.get_children(path)
             try:
                 node = ConfigNode(
                     name,
                     attributes=json.loads(
-                        glb.zk_conn.get(path)[0], object_pairs_hook=utils.json_decoder
+                        connection.get(path)[0], object_pairs_hook=utils.json_decoder
                     ),
                     node_type=NodeType.CN,
                 )
@@ -77,7 +80,7 @@ class ConfigReader:
             if len(children) > 0:
                 node.set_node_type(NodeType.AN)
                 for child in children:
-                    node.add(ConfigReader().zk(f"{path}/{child}", child))
+                    node.add(ConfigReader().zk(connection, f"{path}/{child}", child))
             return node
         return None
 

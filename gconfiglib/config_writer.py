@@ -6,7 +6,6 @@ from typing import Optional
 
 from kazoo.client import KazooClient
 
-import gconfiglib.globals as glb
 from gconfiglib import utils
 from gconfiglib.config_attribute import ConfigAttribute
 from gconfiglib.config_node import ConfigNode
@@ -84,11 +83,12 @@ class ConfigWriter:
         :param force: Force file overwrite (True/False)
         """
 
-        if not glb.zk_conn:
+        root = self.cfg_obj.get_root()
+        if not root.zk_conn:
             raise IOError("No open Zookeeper connection")
-        if not glb.zk_update:
+        if not root.zk_update:
             # Lock configuration from getting updated
-            glb.zk_update = True
+            root.zk_update = True
             if path is None:
                 path = self.cfg_obj.zk_path
 
@@ -112,24 +112,24 @@ class ConfigWriter:
             else:
                 content = json.dumps({})
 
-            if glb.zk_conn.exists(path):
+            if root.zk_conn.exists(path):
                 if force:
                     # need to make sure there are no "orphans" from previous version of the configuration
-                    glb.zk_update = False
-                    glb.zk_conn.delete(path, recursive=True)
-                    glb.zk_conn.create(path, content.encode(), makepath=True)
-                    glb.zk_update = True
+                    root.zk_update = False
+                    root.zk_conn.delete(path, recursive=True)
+                    root.zk_conn.create(path, content.encode(), makepath=True)
+                    root.zk_update = True
                 else:
                     raise IOError(
                         "Failed to save configuration - path already exists and force attribute is not set"
                     )
             else:
-                glb.zk_conn.create(path, content.encode(), makepath=True)
+                root.zk_conn.create(path, content.encode(), makepath=True)
             if self.cfg_obj.node_type == NodeType.AN:
                 for node_name in self.cfg_obj.list_nodes():
-                    glb.zk_update = False
+                    root.zk_update = False
                     ConfigWriter(self.cfg_obj._get_obj(node_name)).zk(
                         f"{path}/{node_name}", force=force
                     )
-                    glb.zk_update = True
-            glb.zk_update = False
+                    root.zk_update = True
+            root.zk_update = False
