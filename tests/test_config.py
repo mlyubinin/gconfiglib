@@ -1,29 +1,30 @@
+""" Primary set of unit tests for gconfiglib."""
+
 import json
 import os
-import sys
 import unittest
 
 import gconfiglib as cfg
+import gconfiglib.config_reader as cfg_reader
 from gconfiglib import config, utils
-
-# sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from gconfiglib.config_root import ConfigRoot
+from gconfiglib.enums import Fmt, NodeType
 
 # Host for Zookeeper tests
-zookeeper_host = "localhost"
+ZOOKEEPER_HOST = "localhost"
 
 # used for immutability test
-global_val = 5
+GLOBAL_VAL = 5
 
 
 class TestGConfiglib(unittest.TestCase):
     def setUp(self):
-        config.init("tests/import.conf_test")
-        pass
+        self.cfg = cfg.ConfigRoot("tests/import.conf_test")
 
     # read_config
     def test_read_config_no_file(self):
         with self.assertRaises(Exception) as e:
-            config.read_config("no_file")
+            cfg_reader.read_config("no_file")
         self.assertEqual(
             str(e.exception),
             "File no_file does not exist or is not readable",
@@ -37,7 +38,7 @@ class TestGConfiglib(unittest.TestCase):
             assert True
         else:
             with self.assertRaises(Exception) as e:
-                config.read_config("tests/test_utils_no_rights")
+                cfg_reader.read_config("tests/test_utils_no_rights")
             os.system("chmod a+r tests/test_utils_no_rights")
             print(e.exception)
             self.assertEqual(
@@ -48,7 +49,7 @@ class TestGConfiglib(unittest.TestCase):
 
     def test_read_config_empty(self):
         with self.assertRaises(Exception) as e:
-            config.read_config("tests/test_utils_empty")
+            cfg_reader.read_config("tests/test_utils_empty")
         self.assertEqual(
             str(e.exception),
             "Empty configuration file tests/test_utils_empty",
@@ -56,34 +57,35 @@ class TestGConfiglib(unittest.TestCase):
         )
 
     def test_read_config_no_separator(self):
-        res = config.read_config("tests/test_utils_cases").get("no_separator", None)
+        res = cfg_reader.read_config("tests/test_utils_cases").get("no_separator", None)
         print(res)
         self.assertIsNone(res)
 
     def test_read_config_no_value(self):
         self.assertIsNone(
-            config.read_config("tests/test_utils_cases").get("no_value", None)
+            cfg_reader.read_config("tests/test_utils_cases").get("no_value", None)
         )
 
     def test_read_config_double_sign(self):
         self.assertEqual(
-            config.read_config("tests/test_utils_cases").get("double_sign", None),
+            cfg_reader.read_config("tests/test_utils_cases").get("double_sign", None),
             "value =",
         )
 
     def test_read_config_positive(self):
         self.assertEqual(
-            config.read_config("tests/test_utils_cases").get("key", None), "value"
+            cfg_reader.read_config("tests/test_utils_cases").get("key", None), "value"
         )
 
     def test_read_config_section_empty(self):
         self.assertEqual(
-            config.read_config("tests/test_utils_cases").get("empty_section", None), {}
+            cfg_reader.read_config("tests/test_utils_cases").get("empty_section", None),
+            {},
         )
 
     def test_read_config_section_ok(self):
         self.assertEqual(
-            config.read_config("tests/test_utils_cases")
+            cfg_reader.read_config("tests/test_utils_cases")
             .get("section_1", None)
             .get("key", None),
             "value",
@@ -91,7 +93,7 @@ class TestGConfiglib(unittest.TestCase):
 
     def test_read_config_list_ok(self):
         lst = (
-            config.read_config("tests/test_utils_cases")
+            cfg_reader.read_config("tests/test_utils_cases")
             .get("section_1", None)
             .get("list", None)
         )
@@ -106,15 +108,15 @@ class TestGConfiglib(unittest.TestCase):
 
     def test_read_config_comments(self):
         # There is a set number of values in the cases file. The rest are negative scenarios and comments
-        self.assertEqual(len(config.read_config("tests/test_utils_cases")), 4)
+        self.assertEqual(len(cfg_reader.read_config("tests/test_utils_cases")), 4)
 
     def test_parse_config_line_empty_section(self):
-        self.assertEqual(config.parse_config_line("[ ]"), (0, ""))
+        self.assertEqual(cfg_reader.parse_config_line("[ ]"), (0, ""))
 
     def test_initialize_wrong_file(self):
         os.system('echo "abc" > test_cfg.pkl')
-        with self.assertRaisesRegex(Exception, "Could not read configuration file"):
-            cfg.init("test_cfg.pkl")
+        with self.assertRaisesRegex(Exception, "Could not initialize configuration"):
+            ConfigRoot("test_cfg.pkl")
         if os.path.isfile("test_cfg.pkl"):
             os.system("rm -f test_cfg.pkl")
 
@@ -131,7 +133,7 @@ class TestGConfiglib(unittest.TestCase):
         template.add(cfg.TemplateAttributeFixed("attr1"))
         template.add(cfg.TemplateAttributeFixed("attr2"))
         with self.assertRaises(ValueError) as e:
-            template.add(config.TemplateAttributeFixed("attr1"))
+            template.add(cfg.TemplateAttributeFixed("attr1"))
         self.assertEqual(
             str(e.exception),
             "Attribute or node attr1 can only be added to node some_node once",
@@ -183,7 +185,7 @@ class TestGConfiglib(unittest.TestCase):
         no_such_section.add(cfg.TemplateAttributeFixed("attr"))
         template.add(no_such_section)
         with self.assertRaises(ValueError) as e:
-            template.validate(cfg.root())
+            template.validate(self.cfg)
         self.assertEqual(
             str(e.exception),
             "Mandatory node /no_such_section is missing, with no defaults set",
@@ -194,7 +196,7 @@ class TestGConfiglib(unittest.TestCase):
         no_such_optional_section = cfg.TemplateNodeFixed("no_such_optional_section")
         no_such_optional_section.add(cfg.TemplateAttributeFixed("attr"))
         template.add(no_such_optional_section)
-        assert template.validate(cfg.root())
+        assert template.validate(self.cfg)
 
     def test_validate_type_mismatch_element(self):
         template = cfg.TemplateNodeFixed("root", optional=False)
@@ -202,7 +204,7 @@ class TestGConfiglib(unittest.TestCase):
         general.add(cfg.TemplateAttributeFixed("log_level", value_type=int))
         template.add(general)
         with self.assertRaises(ValueError) as e:
-            template.validate(cfg.root())
+            template.validate(self.cfg)
         self.assertEqual(
             str(e.exception), "Expecting /general/log_level to be of type <class 'int'>"
         )
@@ -217,7 +219,7 @@ class TestGConfiglib(unittest.TestCase):
         general.add(log_level)
         template.add(general)
         with self.assertRaises(ValueError) as e:
-            template.validate(cfg.root())
+            template.validate(self.cfg)
         self.assertEqual(
             str(e.exception),
             "Configuration object passed for validation to template log_level is not a ConfigNode",
@@ -229,7 +231,7 @@ class TestGConfiglib(unittest.TestCase):
             cfg.TemplateAttributeFixed("general", optional=False, value_type=int)
         )
         with self.assertRaises(AttributeError) as e:
-            template.validate(cfg.root())
+            template.validate(self.cfg)
         self.assertEqual(
             str(e.exception), "'ConfigNode' object has no attribute 'value'"
         )
@@ -248,7 +250,7 @@ class TestGConfiglib(unittest.TestCase):
         )
         template.add(general)
         with self.assertRaises(ValueError) as e:
-            template.validate(cfg.root())
+            template.validate(self.cfg)
         self.assertEqual(
             str(e.exception),
             "Parameter /general/log_level failed validation for value debug",
@@ -293,10 +295,11 @@ class TestGConfiglib(unittest.TestCase):
         with self.assertRaisesRegex(
             ValueError, "Parameter /test_missing_method/method failed validation"
         ) as e:
-            template.validate(cfg.root())
+            template.validate(self.cfg)
 
     def test_validate_nodeset_missing_mandatory_node_default_attr(self):
-        # validation for a missing mandatory node in  a nodeset, where all mandatory attributes have default values, should pass
+        # validation for a missing mandatory node in  a nodeset, where all mandatory attributes have default values
+        # should pass
         template = cfg.TemplateNodeFixed("root", optional=False)
         source_spec = cfg.TemplateNodeFixed("source_spec", optional=False)
         source_spec.add(
@@ -305,8 +308,8 @@ class TestGConfiglib(unittest.TestCase):
         template.add(
             cfg.TemplateNodeSet("source_spec", source_spec, ["test_missing_node"])
         )
-        res = template.validate(cfg.root())
-        res.print_fmt()
+        res = template.validate(self.cfg)
+        print(res)
         self.assertEqual(res.get("/test_missing_node/method"), "abc")
 
     def test_validate_optional_node_mandatory_attr(self):
@@ -315,10 +318,10 @@ class TestGConfiglib(unittest.TestCase):
         opt_node = cfg.TemplateNodeFixed("opt_node", optional=True)
         opt_node.add(cfg.TemplateAttributeFixed("mand_attr", optional=False))
         template.add(opt_node)
-        cfg_node = cfg.ConfigNode("root", node_type="CN")
+        cfg_node = cfg.ConfigNode("root", node_type=NodeType.CN)
         cfg_node.add(cfg.ConfigNode("some_node", attributes={"attr1": "val1"}))
         res = template.validate(cfg_node)
-        res.print_fmt()
+        print(res)
         self.assertEqual(res.list_nodes(), ["some_node"])
 
     def test_validate_json_value_type_ok(self):
@@ -334,15 +337,15 @@ class TestGConfiglib(unittest.TestCase):
             )
         )
         template.add(json_node)
-        cfg_node = cfg.ConfigNode("root", node_type="CN")
+        cfg_node = cfg.ConfigNode("root", node_type=NodeType.CN)
         cfg_node.add(
             cfg.ConfigNode(
                 "json_node", attributes={"json_attr": json.dumps({"a": 1, "b": 2})}
             )
         )
-        cfg_node.print_fmt()
+        print(cfg_node)
         res = template.validate(cfg_node)
-        res.print_fmt()
+        print(res)
         self.assertEqual(json.loads(res.get("/json_node/json_attr"))["b"], 2)
 
     def test_validate_ok(self):
@@ -513,7 +516,7 @@ class TestGConfiglib(unittest.TestCase):
         )
         source_spec.add(cfg.TemplateAttributeFixed("reimport_start"))
         source_spec.add(cfg.TemplateAttributeFixed("reimport_end"))
-        source_list = list(cfg.get("/sources").keys())
+        source_list = list(self.cfg.get("/sources").keys())
         print(f"Source List: {source_list}")
         template.add(cfg.TemplateNodeSet("source_spec", source_spec, source_list))
 
@@ -574,168 +577,168 @@ class TestGConfiglib(unittest.TestCase):
         )
 
         print(template.sample())
-        print(template.sample("TEXT"))
-        assert template.validate(cfg.root())
+        print(template.sample(Fmt.TEXT))
+        assert template.validate(self.cfg)
 
     def test_add_invalid_path(self):
         with self.assertRaises(KeyError):
-            cfg.set("/invalid_section/attribute", "value")
+            self.cfg.set("/invalid_section/attribute", "value")
 
     def test_add_duplicate(self):
-        cfg.set("/", {"new_section": {"attr1": "val1", "attr2": "val2"}})
-        cfg.set("/", {"new_section": {"attr3": "val1", "attr4": "val2"}})
-        result = cfg.get("/new_section/attr1")
-        cfg.root().delete("/new_section")
+        self.cfg.set("/", {"new_section": {"attr1": "val1", "attr2": "val2"}})
+        self.cfg.set("/", {"new_section": {"attr3": "val1", "attr4": "val2"}})
+        result = self.cfg.get("/new_section/attr1")
+        self.cfg.delete("/new_section")
         self.assertIsNone(result)
 
     def test_add_node_ok(self):
-        cfg.set("/", cfg.ConfigNode("add_node_ok"))
-        result = cfg.get("/add_node_ok")
+        self.cfg.set("/", cfg.ConfigNode("add_node_ok"))
+        result = self.cfg.get("/add_node_ok")
         print(result)
-        cfg.root().delete("/add_node_ok")
+        self.cfg.delete("/add_node_ok")
         self.assertIsInstance(result, dict)
 
     def test_add_attr_ok(self):
-        cfg.set("/", cfg.ConfigAttribute("add_attr_ok", True))
-        result = cfg.get("/add_attr_ok")
+        self.cfg.set("/", cfg.ConfigAttribute("add_attr_ok", True))
+        result = self.cfg.get("/add_attr_ok")
         print(result)
-        cfg.root().delete("/add_attr_ok")
+        self.cfg.delete("/add_attr_ok")
         self.assertTrue(isinstance(result, bool) and result)
 
     def test_path_to_obj_invalid(self):
-        result = cfg.get("/general/abc")
+        result = self.cfg.get("/general/abc")
         self.assertIsNone(result)
 
     def test_get_ok(self):
         test_dict = {"new_section": {"attr1": "val1", "attr2": "val2"}}
-        cfg.set("/", test_dict)
-        result = cfg.get("/new_section")
+        self.cfg.set("/", test_dict)
+        result = self.cfg.get("/new_section")
         print(f"Result: {result}")
-        cfg.root().delete("/new_section")
+        self.cfg.delete("/new_section")
         self.assertEqual(result, test_dict["new_section"])
 
     def test_delete_root(self):
         with self.assertRaises(ValueError):
-            cfg.root().delete("/")
+            self.cfg.delete("/")
 
     def test_delete_invalid_path(self):
         with self.assertRaises(KeyError):
-            cfg.root().delete("/no_such_node/no_such_attribute")
+            self.cfg.delete("/no_such_node/no_such_attribute")
 
     def test_delete_node(self):
         test_dict = {"new_section": {"attr1": "val1", "attr2": "val2"}}
-        cfg.set("/", test_dict)
-        cfg.root().delete("/new_section")
-        self.assertIsNone(cfg.get("/new_section"))
+        self.cfg.set("/", test_dict)
+        self.cfg.delete("/new_section")
+        self.assertIsNone(self.cfg.get("/new_section"))
 
     def test_delete_attr(self):
         test_dict = {"new_section": {"attr1": "val1", "attr2": "val2"}}
-        cfg.set("/", test_dict)
-        cfg.root().delete("/new_section/attr1")
-        result = cfg.get("/new_section/attr1")
-        cfg.root().delete("/new_section")
+        self.cfg.set("/", test_dict)
+        self.cfg.delete("/new_section/attr1")
+        result = self.cfg.get("/new_section/attr1")
+        self.cfg.delete("/new_section")
         self.assertIsNone(result)
 
     def test_search_by_attr_name_no_attr(self):
         test_dict = {"i": 2, "n": {"b": True, "n2": {}}}
-        cfg.set("/t1", test_dict)
-        result = cfg.root().search("/", "x", lambda x: x == 5)
-        cfg.root().delete("/t1")
+        self.cfg.set("/t1", test_dict)
+        result = self.cfg.search("/", "x", lambda x: x == 5)
+        self.cfg.delete("/t1")
         self.assertEqual(result, [])
 
     def test_search_by_attr_name_no_match(self):
         test_dict = {"i": 2, "n": {"b": True, "n2": {}}}
-        cfg.set("/t1", test_dict)
-        result = cfg.root().search("/", "i", lambda x: x == 5)
-        cfg.root().delete("/t1")
+        self.cfg.set("/t1", test_dict)
+        result = self.cfg.search("/", "i", lambda x: x == 5)
+        self.cfg.delete("/t1")
         self.assertEqual(result, [])
 
     def test_search_by_attr_name_match(self):
         test_dict = {"i": 2, "n": {"b": True, "n2": {}}}
-        cfg.set("/t1", test_dict)
-        result = cfg.root().search("/", "i", lambda x: x == 2)
+        self.cfg.set("/t1", test_dict)
+        result = self.cfg.search("/", "i", lambda x: x == 2)
         print(result)
-        cfg.root().delete("/t1")
+        self.cfg.delete("/t1")
         self.assertEqual(result, ["/t1"])
 
     def test_search_by_attr_no_name_match(self):
         test_dict = {"i": 2, "n": {"b": True, "n2": {}}}
-        cfg.set("/t1", test_dict)
-        result = cfg.root().search("/", None, lambda x: x == 2)
-        cfg.root().delete("/t1")
+        self.cfg.set("/t1", test_dict)
+        result = self.cfg.search("/", None, lambda x: x == 2)
+        self.cfg.delete("/t1")
         self.assertEqual(result, ["/t1"])
 
     def test_search_by_attr_depth_match(self):
         test_dict = {"i": 2, "n": {"b": 5, "n2": {}}}
-        cfg.set("/t1", test_dict)
-        result = cfg.root().search("/", None, lambda x: x == 5, 2)
+        self.cfg.set("/t1", test_dict)
+        result = self.cfg.search("/", None, lambda x: x == 5, 2)
         print(result)
-        cfg.root().delete("/t1")
+        self.cfg.delete("/t1")
         self.assertEqual(result, ["/t1"])
 
     def test_search_by_attr_recursive_match(self):
         test_dict = {"i": 2, "n": {"b": 5, "n2": {}}}
-        cfg.set("/t1", test_dict)
-        result = cfg.root().search("/", None, lambda x: x == 5, 1, True)
-        cfg.root().delete("/t1")
+        self.cfg.set("/t1", test_dict)
+        result = self.cfg.search("/", None, lambda x: x == 5, 1, True)
+        self.cfg.delete("/t1")
         self.assertEqual(result, ["/t1/n"])
 
     def test_search_by_attr_recursive_depth_match(self):
         test_dict = {"i": 2, "n": {"b": 5, "n2": {}}}
-        cfg.set("/t1", test_dict)
-        result = cfg.root().search("/", None, lambda x: x == 5, 2, True)
+        self.cfg.set("/t1", test_dict)
+        result = self.cfg.search("/", None, lambda x: x == 5, 2, True)
         print(result)
-        cfg.root().delete("/t1")
+        self.cfg.delete("/t1")
         self.assertSetEqual(set(result), set(["/t1/n", "/t1"]))
 
     def test_list_nodes(self):
         test_dict = {"i": 2, "n": {"b": 5, "n2": {}}}
-        cfg.set("/t1", test_dict)
-        result = cfg.root().list_nodes("/t1")
+        self.cfg.set("/t1", test_dict)
+        result = self.cfg.list_nodes("/t1")
         print(" ".join(result))
-        cfg.root().delete("/t1")
+        self.cfg.delete("/t1")
         self.assertEqual(result, ["n"])
 
     def test_list_nodes_fullpath(self):
         test_dict = {"i": 2, "n": {"b": 5, "n2": {}}}
-        cfg.set("/t1", test_dict)
-        result = cfg.root().list_nodes("/t1", True)
+        self.cfg.set("/t1", test_dict)
+        result = self.cfg.list_nodes("/t1", True)
         print(" ".join(result))
-        cfg.root().delete("/t1")
+        self.cfg.delete("/t1")
         self.assertEqual(result, ["/t1/n"])
 
     def test_list_attributes(self):
         test_dict = {"i": 2, "n": {"b": 5, "n2": {}}}
-        cfg.set("/t1", test_dict)
-        result = cfg.root().list_attributes("/t1")
+        self.cfg.set("/t1", test_dict)
+        result = self.cfg.list_attributes("/t1")
         print(" ".join(result))
-        cfg.root().delete("/t1")
+        self.cfg.delete("/t1")
         self.assertSetEqual(set(result), set(["i"]))
 
     def test_get_immutable(self):
-        global global_val
-        test_dict = {"i": 2, "n": {"b": global_val, "n2": {}}}
-        cfg.set("/t1", test_dict)
-        cfg_dict = cfg.get("/t1")
+        global GLOBAL_VAL
+        test_dict = {"i": 2, "n": {"b": GLOBAL_VAL, "n2": {}}}
+        self.cfg.set("/t1", test_dict)
+        cfg_dict = self.cfg.get("/t1")
         # Should be 5 for both
-        print("Direct get: " + str(cfg.get("/t1/n/b")))
+        print("Direct get: " + str(self.cfg.get("/t1/n/b")))
         print("Local map: " + str(cfg_dict["n"]["b"]))
         # Change value of global variable
-        global_val = 10
-        result1 = cfg.get("/t1/n/b")
+        GLOBAL_VAL = 10
+        result1 = self.cfg.get("/t1/n/b")
         # Should print 5
         print("1: " + str(result1))
         # Change value of local map attribute
-        cfg_dict["n"]["b"] = global_val
-        result2 = cfg.get("/t1/n/b")
+        cfg_dict["n"]["b"] = GLOBAL_VAL
+        result2 = self.cfg.get("/t1/n/b")
         # Should still print 5
         print("2: " + str(result2))
         # Change local map node
         cfg_dict["n"] = {"b": "abc"}
-        result3 = cfg.get("/t1/n/b")
+        result3 = self.cfg.get("/t1/n/b")
         # Should still print 5
         print("3: " + str(result3))
-        cfg.root().delete("/t1")
+        self.cfg.delete("/t1")
         self.assertTrue(result1 == result2 == result3 == 5)
 
     def test_node_type_propagation(self):
@@ -746,96 +749,108 @@ class TestGConfiglib(unittest.TestCase):
                 "n13": {"n131": {"attr": 1}, "n132": {"attr": 1}, "n133": {"attr": 1}},
             }
         }
-        cfg.set("/t1", test_dict)
-        cfg.root().set_node_type("AN")
-        r = {}
-        r["r1"] = (
-            cfg.root().node_type == "AN"
-        )  # CN->AN (and remains after C->CN upward propagation)
-        r["r2"] = (
-            cfg.root()._get_obj("/t1").node_type == "CN"
-        )  # C->CN (CN->AN downward propagation)
-        r["r3"] = (
-            cfg.root()._get_obj("/t1/n1").node_type == "C"
-        )  # C-> C (C->CN downward propagation)
-        cfg.root()._get_obj("/t1/n1/n11/n111").set_node_type("CN")
-        r["r4"] = cfg.root()._get_obj("/t1/n1/n11/n111").node_type == "CN"  # C->CN
-        r["r5"] = (
-            cfg.root()._get_obj("/t1/n1/n11").node_type == "AN"
-        )  # C->AN (C->CN upward propagation)
-        r["r6"] = (
-            cfg.root()._get_obj("/t1/n1").node_type == "AN"
-        )  # C->AN (C->CN upward propagation)
-        r["r7"] = (
-            cfg.root()._get_obj("/t1/n1/n11/n112").node_type == "CN"
-        )  # C->CN (C->AN downward propagation)
-        r["r8"] = (
-            cfg.root()._get_obj("/t1/n1/n12").node_type == "CN"
-        )  # C->CN (C->AN downward propagation)
-        cfg.root().print_fmt()
-        try:
-            cfg.root()._get_obj("/t1/n1/n11/n111").set_node_type("C")
-        except AttributeError:
-            cfg.root()._get_obj("/t1/n1/n11/n111").set_node_type("CN")
-            r["r9"] = True
-        cfg.root()._get_obj("/t1/n1").set_node_type("CN")
-        r["r10"] = cfg.root()._get_obj("/t1/n1").node_type == "CN"  # AN->CN
-        r["r11"] = (
-            cfg.root()._get_obj("/t1/n1/n12").node_type == "C"
-        )  # CN->C (AN->CN downward propagation)
-        r["r12"] = (
-            cfg.root()._get_obj("/t1/n1/n11/n112").node_type == "C"
-        )  # CN->C (AN->CN downward propagation)
-        r["r13"] = (
-            cfg.root()._get_obj("/t1/n1/n11").node_type == "C"
-        )  # AN->C (AN->CN downward propagation
-        cfg.root().delete("/t1")
-        print(r)
-        self.assertEqual(len([x for x in r.values() if not x]), 0)
+        self.cfg.set("/t1", test_dict)
+        print(
+            "Initial configuration with /t1 added - /t1 and nodes under it should be type C"
+        )
+        print(self.cfg)
+        print("\n----------------------------------------------------------------")
+        # CN->AN (and remains after C->CN upward propagation)
+        self.cfg.set_node_type(NodeType.AN)
+        print(
+            "Change Root to AN - /t1 should change to CN, nodes under it should be type C"
+        )
+        print(self.cfg)
+        print("\n----------------------------------------------------------------")
+        self.assertEqual(self.cfg.node_type, NodeType.AN)
+        # C->CN (CN->AN downward propagation)
+        self.assertEqual(self.cfg._get_obj("/t1").node_type, NodeType.CN)
+        # C-> C (C->CN downward propagation)
+        self.assertEqual(self.cfg._get_obj("/t1/n1").node_type, NodeType.C)
+
+        # C -> CN
+        self.cfg._get_obj("/t1/n1/n11/n111").set_node_type(NodeType.CN)
+        print(
+            "Change /t1/n1/n11/n111 node type to CN - parent nodes should change to AN, child nodes should stay type C"
+        )
+        print(self.cfg)
+        print("\n----------------------------------------------------------------")
+        # C -> CN
+        self.assertEqual(self.cfg._get_obj("/t1/n1/n11/n111").node_type, NodeType.CN)
+        self.assertEqual(self.cfg._get_obj("/t1/n1/n11/n112").node_type, NodeType.CN)
+        self.assertEqual(self.cfg._get_obj("/t1/n1/n12").node_type, NodeType.CN)
+
+        # C -> AN (C->CN upward propagation)
+        self.assertEqual(self.cfg._get_obj("/t1/n1/n11").node_type, NodeType.AN)
+        self.assertEqual(self.cfg._get_obj("/t1/n1").node_type, NodeType.AN)
+
+        # try:
+        with self.assertRaises(AttributeError) as e:
+            self.cfg._get_obj("/t1/n1/n11/n111").set_node_type(NodeType.C)
+        self.assertEqual(
+            str(e.exception),
+            "Attempt to change n111 to a Content-only node with no Content Node parent",
+        )
+
+        # AN -> CN
+        self.cfg._get_obj("/t1/n1").set_node_type(NodeType.CN)
+        print(
+            "Change /t1/n1 node type to CN - parent nodes should stay AN, child nodes should change to C"
+        )
+        print(self.cfg)
+        print("\n----------------------------------------------------------------")
+        # AN -> CN
+        self.assertEqual(self.cfg._get_obj("/t1/n1").node_type, NodeType.CN)
+        # CN -> C
+        self.assertEqual(self.cfg._get_obj("/t1/n1/n12").node_type, NodeType.C)
+        self.assertEqual(self.cfg._get_obj("/t1/n1/n11/n112").node_type, NodeType.C)
+        # AN -> C
+        self.assertEqual(self.cfg._get_obj("/t1/n1/n11").node_type, NodeType.C)
+
+        self.cfg.delete("/t1")
 
     def test_write_cfg(self):
         if os.path.isfile("test_cfg.cfg"):
             os.system("rm -f test_cfg.cfg")
-        cfg.root().print_fmt()
-        cfg.root().write().cfg("test_cfg.cfg")
-        new_config = config.ConfigNode.read().cfg("test_cfg.cfg")
+        print(self.cfg)
+        self.cfg.write().cfg("test_cfg.cfg")
+        new_config = ConfigRoot("test_cfg.cfg")
         if os.path.isfile("test_cfg.cfg"):
             os.system("rm -f test_cfg.cfg")
         self.assertEqual(
-            cfg.get("/general/log_level"), new_config.get("/general/log_level")
+            self.cfg.get("/general/log_level"), new_config.get("/general/log_level")
         )
 
     def test_write_json(self):
         if os.path.isfile("test_cfg.json"):
             os.system("rm -f test_cfg.json")
-        cfg.root().write().json("test_cfg.json")
-        new_config = config.ConfigNode.read().json("test_cfg.json")
+        self.cfg.write().json("test_cfg.json")
+        new_config = ConfigRoot("test_cfg.json")
         if os.path.isfile("test_cfg.json"):
             os.system("rm -f test_cfg.json")
         self.assertEqual(
-            cfg.get("/general/log_level"), new_config.get("/general/log_level")
+            self.cfg.get("/general/log_level"), new_config.get("/general/log_level")
         )
 
     def test_initialize_zk(self):
-        cfg.init("tests/import.conf_test")
-        if not config._zk_conn:
-            config._zk_conn = utils.zk_connect(
-                f"zookeeper://test:test@{zookeeper_host}:2181/"
-            )
-        cfg.root().write().zk(path="/gconfiglib/test_config", force=True)
-        config._cfg_root = None
-        cfg.init(f"zookeeper://test:test@{zookeeper_host}:2181/gconfiglib/test_config")
-        self.assertEqual(cfg.get("/target/database"), "test")
+        if not self.cfg.zk_conn:
+            self.cfg.zk_uri = f"zookeeper://test:test@{ZOOKEEPER_HOST}:2181/"
+            self.cfg.zk_conn = utils.zk_connect(self.cfg.zk_uri)
+        self.cfg.write().zk(path="/gconfiglib/test_config", force=True)
+        cfg1 = ConfigRoot(
+            f"zookeeper://test:test@{ZOOKEEPER_HOST}:2181/gconfiglib/test_config"
+        )
+        self.assertEqual(cfg1.get("/target/database"), "test")
 
     def test_zk_hierarchy(self):
-        config._cfg_root = None
-
         def create_config_template(node):
-            template = cfg.TemplateNodeFixed("root", optional=False)
+            template = cfg.TemplateNodeFixed(
+                "root", optional=False, node_type=NodeType.AN
+            )
             n1 = cfg.TemplateNodeFixed("n1")
             n11 = cfg.TemplateNodeFixed("n11")
             n12 = cfg.TemplateNodeFixed("n12")
-            n111 = cfg.TemplateNodeFixed("n111", node_type="CN")
+            n111 = cfg.TemplateNodeFixed("n111", node_type=NodeType.CN)
             n111.add(cfg.TemplateAttributeFixed("attr", value_type=int))
             n11.add(n111)
             n112 = cfg.TemplateNodeFixed("n112")
@@ -853,28 +868,25 @@ class TestGConfiglib(unittest.TestCase):
             template.add(n1)
             return template
 
-        cfg.init("tests/zk_hierarchy.json", template_gen=create_config_template)
-        cfg.root().print_fmt()
-        cfg.root().write().zk(path="/gconfiglib/test_zk_hierarchy", force=True)
-        config._cfg_root = None
-        cfg.init(
-            f"zookeeper://test:test@{zookeeper_host}:2181/gconfiglib/test_zk_hierarchy",
+        cfg1 = cfg.ConfigRoot(
+            "tests/zk_hierarchy.json", template_gen=create_config_template
+        )
+        print(cfg1)
+        cfg1.zk_uri = f"zookeeper://test:test@{ZOOKEEPER_HOST}:2181/"
+        cfg1.zk_conn = utils.zk_connect(cfg1.zk_uri)
+        cfg1.write().zk(path="/gconfiglib/test_zk_hierarchy", force=True)
+        cfg2 = cfg.ConfigRoot(
+            f"zookeeper://test:test@{ZOOKEEPER_HOST}:2181/gconfiglib/test_zk_hierarchy",
             template_gen=create_config_template,
         )
-        cfg.root().print_fmt()
-        cfg.root().write().zk(path="/gconfiglib/test_zk_hierarchy", force=True)
-        config._cfg_root = None
-        cfg.init(
-            f"zookeeper://test:test@{zookeeper_host}:2181/gconfiglib/test_zk_hierarchy"
+        print(cfg2)
+        cfg2.write().zk(path="/gconfiglib/test_zk_hierarchy", force=True)
+        cfg3 = cfg.ConfigRoot(
+            f"zookeeper://test:test@{ZOOKEEPER_HOST}:2181/gconfiglib/test_zk_hierarchy"
         )
-        cfg.root().print_fmt()
-        r = []
-        r.append(cfg.root().node_type == "AN")
-        r.append(cfg.root()._get_obj("n1").node_type == "AN")
-        r.append(cfg.root()._get_obj("n1/n12").node_type == "CN")
-        r.append(cfg.root()._get_obj("n1/n11/n111").node_type == "CN")
-        r.append(cfg.root().get("n1/n11/n11_attr") == 3)
-        print(r)
-        config._cfg_root = None
-        cfg.init("tests/import.conf_test")
-        self.assertEqual(sum(r), 5)
+        print(cfg3)
+        self.assertEqual(cfg3.node_type, NodeType.AN)
+        self.assertEqual(cfg3._get_obj("n1").node_type, NodeType.AN)
+        self.assertEqual(cfg3._get_obj("n1/n12").node_type, NodeType.CN)
+        self.assertEqual(cfg3._get_obj("n1/n11/n111").node_type, NodeType.CN)
+        self.assertEqual(cfg3.get("n1/n11/n11_attr"), 3)
