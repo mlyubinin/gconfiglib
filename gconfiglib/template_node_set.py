@@ -7,6 +7,8 @@ from gconfiglib.config_node import ConfigNode
 from gconfiglib.enums import Fmt
 from gconfiglib.template_node_base import TemplateNodeBase
 
+logger = logging.getLogger(__name__)
+
 
 class TemplateNodeSet(TemplateNodeBase):
     """
@@ -37,8 +39,8 @@ class TemplateNodeSet(TemplateNodeBase):
         :param node: Node to be validated
         :return: validated node (possibly changed from original), or raises ValueError on failure to validate
         """
-        logger = logging.getLogger("gconfiglib")
 
+        logger.debug("Validating nodeset %s", self.name)
         node = super().validate(node)
         # If None, pass it back without further checks (missing optional node was not created)
         if node is None:
@@ -47,7 +49,7 @@ class TemplateNodeSet(TemplateNodeBase):
             if name not in node.attributes.keys():
                 if not self.attributes["node"].optional:
                     node.add(ConfigNode(name))
-                    logger.debug(
+                    logger.error(
                         "Mandatory node %s is missing in %s", name, node.get_path()
                     )
                 else:

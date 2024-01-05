@@ -3,13 +3,15 @@
 
 import datetime as dt
 import json
-import sys
+import logging
 from typing import Any, Callable, Optional
 
 from gconfiglib.config_abcs import ConfigAttributeABC
 from gconfiglib.enums import Fmt
 from gconfiglib.template_base import TemplateBase
 from gconfiglib.utils import json_serial
+
+logger = logging.getLogger(__name__)
 
 
 class TemplateAttributeBase(TemplateBase):
@@ -55,6 +57,11 @@ class TemplateAttributeBase(TemplateBase):
                     value.value = value.value.date()
                 else:
                     if value.value is not None and value.value != "":
+                        logger.error(
+                            "Failed to convert the %s to type %s",
+                            value.get_path(),
+                            self.value_type,
+                        )
                         raise ValueError(
                             f"Expecting {value.get_path()} to be of type {self.value_type}"
                         ) from e
@@ -64,16 +71,21 @@ class TemplateAttributeBase(TemplateBase):
                 try:
                     valid = self.validator(value.value)
                     problem = ""
-                except ValueError:
+                except ValueError as e:
                     valid = False
-                    problem = sys.exc_info()[0]
+                    problem = str(e)
                 if not valid:
                     message = f"Parameter {value.get_path()} failed validation for value {value.value}"
                     if problem != "":
                         message += f": {problem}"
+                    logger.error(message)
                     raise ValueError(message)
         if not self.optional and value.value is None:
             # mandatory attribute with no value and no default
+            logger.error(
+                "Mandatory parameter %s has not been set, and has no default value",
+                value.get_path(),
+            )
             raise ValueError(
                 f"Mandatory parameter {value.get_path()} has not been set, and has no default value"
             )

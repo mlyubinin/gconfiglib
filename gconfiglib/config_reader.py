@@ -28,6 +28,7 @@ class ConfigReader:
         :return: ConfigNode with file contents parsed into nodes and attributes
         """
         if check_file(filename):
+            logger.info("Reading config file %s", filename)
             return ConfigNode("root", attributes=read_config(filename))
         return None
 
@@ -39,6 +40,7 @@ class ConfigReader:
         :return: ConfigNode with file contents parsed into nodes and attributes
         """
         if check_file(filename):
+            logger.info("Reading config file %s", filename)
             with open(filename, "r", encoding="utf-8") as f:
                 return ConfigNode(
                     "root",
@@ -58,12 +60,14 @@ class ConfigReader:
         """
 
         if not connection:
+            logger.error("No open Zookeeper connection")
             raise IOError("No open Zookeeper connection")
         if not connection.exists(path):
             logger.error("Path %s does not exist", path)
         else:
             children: Optional[List[str]] = connection.get_children(path)
             try:
+                logger.debug("Reading node %s at path %s", name, path)
                 node = ConfigNode(
                     name,
                     attributes=json.loads(
@@ -75,6 +79,9 @@ class ConfigReader:
                 if str(e) == "No JSON object could be decoded" and len(children) > 0:
                     node = ConfigNode(name)
                 else:
+                    logger.exception(
+                        "Unable to read the node at path %s", path, exc_info=True
+                    )
                     raise
             node.zk_path = path
             if len(children) > 0:
@@ -93,6 +100,9 @@ def check_file(filename: str) -> bool:
     """
     if os.path.isfile(filename) and os.access(filename, os.R_OK):
         return True
+    logger.exception(
+        "File %s does not exist or is not readable", filename, exc_info=True
+    )
     raise IOError(f"File {filename} does not exist or is nor readable")
 
 
@@ -128,8 +138,12 @@ def read_config(
             else:
                 conf[cur_section][config_key] = config_value
         if not conf:
+            logger.exception("Empty configuration file %s", file_name, exc_info=True)
             raise IOError(f"Empty configuration file {file_name}")
         return conf
+    logger.exception(
+        "File %s does not exist or is not readable", file_name, exc_info=True
+    )
     raise FileNotFoundError(f"File {file_name} does not exist or is not readable")
 
 

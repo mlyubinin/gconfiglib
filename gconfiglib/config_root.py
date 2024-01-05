@@ -15,7 +15,7 @@ from gconfiglib.enums import NodeType
 from gconfiglib.template_node_base import TemplateNodeBase
 from gconfiglib.template_node_fixed import TemplateNodeFixed
 
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 
 class ConfigRoot(ConfigNode):
@@ -140,6 +140,7 @@ class ConfigRoot(ConfigNode):
                         self._copy(self.read().cfg(fname))
                         self.set_node_type(NodeType.CN)
                 except:  # noqa: E722
+                    logger.debug("Unable to read configuration from %s", fname)
                     continue
 
                 if hasattr(self, "attributes") and len(self.attributes) > 0:
@@ -147,6 +148,10 @@ class ConfigRoot(ConfigNode):
                     break
 
             if hasattr(self, "attributes") and len(self.attributes) == 0:
+                logger.exception(
+                    "Could not read configuration file from any of the specified sources: %s",
+                    candidate_list,
+                )
                 raise IOError(
                     f"Could not read configuration file from any of the specified sources: {candidate_list}"
                 )
@@ -156,7 +161,9 @@ class ConfigRoot(ConfigNode):
             self.template_gen = template_gen
             template: Type[TemplateNodeBase] = template_gen(self)
             if isinstance(template, TemplateNodeFixed) and template.name == "root":
+                logger.debug("Validating configuration")
                 self._copy(template.validate(self))
+                logger.debug("Completed configuration validation")
             else:
                 logger.error("Invalid configuration template")
 
