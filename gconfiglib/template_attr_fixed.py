@@ -1,8 +1,11 @@
 """ Fixed Attribute Template."""
+import logging
 from typing import Any, Callable, Optional
 
 from gconfiglib.config_attribute import ConfigAttribute
 from gconfiglib.template_attr_base import TemplateAttributeBase
+
+logger = logging.getLogger(__name__)
 
 
 class TemplateAttributeFixed(TemplateAttributeBase):
@@ -38,6 +41,8 @@ class TemplateAttributeFixed(TemplateAttributeBase):
         :param value: Value to be validated
         :return: validated value (possibly changed from original), or raises ValueError on failure to validate
         """
+        logger.debug("Validating %s", self.name)
         if not value:
             value = ConfigAttribute(self.name, self.default_value)
+            logger.debug("Set %s to default value %s", self.name, self.default_value)
         return super().validate(value, self.name)

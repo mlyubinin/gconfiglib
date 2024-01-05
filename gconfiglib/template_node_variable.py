@@ -1,4 +1,5 @@
 """ Node with Variable Attributes Template."""
+import logging
 from collections import OrderedDict
 from typing import Any, Callable, Optional
 
@@ -7,6 +8,8 @@ from gconfiglib.config_node import ConfigNode
 from gconfiglib.enums import NodeType
 from gconfiglib.template_attr_variable import TemplateAttributeVariable
 from gconfiglib.template_node_base import TemplateNodeBase
+
+logger = logging.getLogger(__name__)
 
 
 class TemplateNodeVariableAttr(TemplateNodeBase):
@@ -46,11 +49,15 @@ class TemplateNodeVariableAttr(TemplateNodeBase):
         :param node: Node to be validated
         :return: validated node (possibly changed from original), or raises ValueError on failure to validate
         """
+
+        logger.debug("Validating node %s", self.name)
         node = super().validate(node)
         # If None, pass it back without further checks (missing optional node was not created)
         if node is None:
+            logger.debug("Node %s is empty", self.name)
             return None
         if len(node.attributes) == 0 and not self.optional:
+            logger.error("Node %s cannot be empty", node.get_path())
             raise ValueError(f"Node {node.get_path()} cannot be empty")
         for attr_name, attr_value in node.attributes.items():
             new_value = self.attributes["variable_attribute"].validate(
@@ -62,5 +69,6 @@ class TemplateNodeVariableAttr(TemplateNodeBase):
                 node.add(new_value)
 
         if len(node.attributes) == 0:
+            logger.debug("Node %s has no attributes", self.name)
             return None
         return node

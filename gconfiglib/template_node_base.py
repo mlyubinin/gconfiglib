@@ -1,11 +1,13 @@
 """ Base Node Template."""
-import sys
+import logging
 from collections import OrderedDict
 from typing import Any, Callable, Optional
 
 from gconfiglib.config_node import ConfigNode
 from gconfiglib.enums import Fmt, NodeType
 from gconfiglib.template_base import TemplateBase
+
+logger = logging.getLogger(__name__)
 
 
 class TemplateNodeBase(TemplateBase):
@@ -44,27 +46,37 @@ class TemplateNodeBase(TemplateBase):
         if node is None:
             # Empty node - try creating a node if it's mandatory, otherwise return None
             if self.optional:
+                logger.debug("Node %s is missing, but it's optional", self.name)
                 return None
+            logger.debug(
+                "Mandatory node %s is missing, creating one from default values",
+                self.name,
+            )
             node = ConfigNode(self.name)
         elif not isinstance(node, ConfigNode):
+            logger.debug(
+                "Configuration object passed for validation to template %s is not a ConfigNode",
+                self.name,
+            )
             raise ValueError(
                 f"Configuration object passed for validation to template {self.name} is not a ConfigNode"
             )
         elif len(self.attributes) == 0:
+            logger.debug("Template for node %s has no attributes", self.name)
             raise ValueError(f"Template for node {self.name} has no attributes")
         # TODO self.validator needs to be run after attributes' validator functions have been run
         if self.validator is not None:
             try:
                 valid = self.validator(node.get())
                 problem = ""
-            except ValueError:
+            except ValueError as e:
                 valid = False
-                problem = sys.exc_info()[0]
-                # TODO replace this with info from traceback
+                problem = str(e)
             if not valid:
                 message = f"Node {node.get_path()} failed validation"
                 if problem != "":
                     message += f": {problem}"
+                logger.error(message)
                 raise ValueError(message)
         if self.node_type and self.node_type != node.node_type:
             node.set_node_type(self.node_type)

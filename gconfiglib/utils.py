@@ -16,13 +16,14 @@ import pandas as pd
 from kazoo.client import KazooClient
 from kazoo.security import make_digest_acl
 
+logger = logging.getLogger(__name__)
+
 
 def zk_connect(uri: str) -> Optional[KazooClient]:
     """
     Connects to zookeeper
     :return: zookeeper connection, or None if unsuccessful
     """
-    logger = logging.getLogger("gconfiglib")
     zk_uri: urlparse.ParseResult = urlparse.urlparse(uri)
     if (
         zk_uri.scheme != "zookeeper"

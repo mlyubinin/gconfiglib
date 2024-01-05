@@ -19,4 +19,4 @@ from .template_node_fixed import TemplateNodeFixed
 from .template_node_set import TemplateNodeSet
 from .template_node_variable import TemplateNodeVariableAttr
 
-logging.getLogger("gconfiglib").addHandler(logging.NullHandler())
+logging.getLogger(__name__).addHandler(logging.NullHandler())

@@ -1,5 +1,6 @@
 """ Configuration Node class."""
 
+import logging
 import os
 from collections import OrderedDict
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type
@@ -7,6 +8,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type
 from gconfiglib.config_abcs import ConfigNodeABC, ConfigObject
 from gconfiglib.config_attribute import ConfigAttribute
 from gconfiglib.enums import NodeType
+
+logger = logging.getLogger(__name__)
 
 
 class ConfigNode(ConfigNodeABC):
@@ -56,16 +59,23 @@ class ConfigNode(ConfigNodeABC):
 
         self.attributes: OrderedDict[str, ConfigObject] = OrderedDict()
 
+        logger.info("Created node: %s", self.name)
+
         if attributes:
             # Explicitly set attributes
+            logger.debug("Starting to add attributes")
             self.add(attributes)
+            logger.debug("Done adding attributes")
 
         if template_gen:
             # Validate configration
             self.template_gen = template_gen
+            logger.debug("Generating a validation template")
             template: Type[TemplateNodeBase] = template_gen(self)
             if isinstance(template, TemplateNodeFixed) and template.name == "root":
+                logger.debug("Starting configuration validation")
                 self._copy(template.validate(self))
+                logger.debug("Done with configuration validation")
 
     def add(
         self,
@@ -79,6 +89,7 @@ class ConfigNode(ConfigNodeABC):
         """
         if isinstance(attributes, ConfigObject):
             # A single ConfigNode or ConfigAttribute
+            logger.debug("Adding attribute %s to node %s", attributes.name, self.name)
             self.attributes[attributes.name] = attributes
             attributes._set_parent(self)
         elif isinstance(attributes, list):
@@ -86,20 +97,32 @@ class ConfigNode(ConfigNodeABC):
             for attribute in attributes:
                 if isinstance(attribute, ConfigObject):
                     # A ConfigNode or ConfigAttribute as a list element
+                    logger.debug(
+                        "Adding attribute %s to node %s", attribute.name, self.name
+                    )
                     self.attributes[attribute.name] = attribute
                 elif isinstance(attribute, tuple) and len(attribute) == 2:
                     # A tuple will result either in the node or an attribute
                     if isinstance(attribute[1], dict) or isinstance(attribute[1], list):
                         # (name, dictionary) or (name, list) - create a node
+                        logger.debug(
+                            "Adding node %s to node %s", attribute[0], self.name
+                        )
                         self.attributes[attribute[0]] = ConfigNode(
                             attribute[0], parent=self, attributes=attribute[1]
                         )
                     else:
                         # (name, value) - create an attribute
+                        logger.debug(
+                            "Adding attribute %s to node %s", attribute[0], self.name
+                        )
                         self.attributes[attribute[0]] = ConfigAttribute(
                             attribute[0], attribute[1], parent=self
                         )
                 else:
+                    logger.error(
+                        "ConfigNode.add only accepts single ConfigNode, ConfigAttribute, a list of ConfigNodes and/or ConfigAttributes or a list of tuples that can be used to create nodes and/or attributes."
+                    )
                     raise ValueError(
                         "ConfigNode.add only accepts single ConfigNode, ConfigAttribute,"
                         "a list of ConfigNodes and/or ConfigAttributes",
@@ -110,15 +133,20 @@ class ConfigNode(ConfigNodeABC):
             for a_key, a_value in attributes.items():
                 if isinstance(a_value, dict):
                     # for a dic element, create a node
+                    logger.debug("Adding node %s to node %s", a_key, self.name)
                     self.attributes[a_key] = ConfigNode(
                         a_key, parent=self, attributes=a_value
                     )
                 else:
                     # for any other element, create an attribute
+                    logger.debug("Adding attribute %s to node %s", a_key, self.name)
                     self.attributes[a_key] = ConfigAttribute(
                         a_key, a_value, parent=self
                     )
         else:
+            logger.error(
+                "ConfigNode.add only accepts single ConfigNode, ConfigAttribute, or a list of ConfigNodes and/or ConfigAttributes"
+            )
             raise ValueError(
                 "ConfigNode.add only accepts single ConfigNode, ConfigAttribute,"
                 "or a list of ConfigNodes and/or ConfigAttributes"
@@ -130,8 +158,10 @@ class ConfigNode(ConfigNodeABC):
         Delete content
         :param path: Path - everything at and below this path will be deleted
         """
+        logger.info("Deleting node %s", path)
         nodes = [x for x in path.split("/") if x != ""]
         if len(nodes) == 0:
+            logger.error("No path to delete specified")
             raise ValueError("No path to delete specified")
         if len(nodes) == 1:
             # the path corresponds to this node
@@ -149,6 +179,7 @@ class ConfigNode(ConfigNodeABC):
         """
         self.parent = parent_node
         self.depth = parent_node.depth + 1
+        logger.debug("Setting node's %s parent to %s", self.name, parent_node.name)
         for child in self.attributes.values():
             # recalculate depth for child nodes
             if isinstance(child, ConfigNode):
@@ -364,6 +395,9 @@ class ConfigNode(ConfigNodeABC):
         :param force: boolean. Force the change to parent and child nodes even if current node type is unchanged
         """
         # Actions on node type change
+        logger.info(
+            "Changing %s node type from %s to %s", self.name, self.node_type, new_value
+        )
         if self.node_type != new_value:
             # There are 3 possible propagation actions:
             # 1. Change attribute of child nodes
@@ -410,6 +444,10 @@ class ConfigNode(ConfigNodeABC):
                         break
                     cur_node = cur_node.parent
                 if not found_cn:
+                    logger.error(
+                        "Attempt to change %s to a Content-only node with no Content Node parent",
+                        self.name,
+                    )
                     raise AttributeError(
                         f"Attempt to change {self.name} to a Content-only node with no Content Node parent"
                     )

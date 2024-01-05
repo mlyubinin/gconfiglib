@@ -1,4 +1,5 @@
 """ Fixed Node Template."""
+import logging
 from typing import Optional
 
 from gconfiglib.config_attribute import ConfigAttribute
@@ -7,6 +8,8 @@ from gconfiglib.template_attr_fixed import TemplateAttributeFixed
 from gconfiglib.template_base import TemplateBase
 from gconfiglib.template_node_base import TemplateNodeBase
 from gconfiglib.template_node_set import TemplateNodeSet
+
+logger = logging.getLogger(__name__)
 
 
 class TemplateNodeFixed(TemplateNodeBase):
@@ -37,6 +40,7 @@ class TemplateNodeFixed(TemplateNodeBase):
         :param node: Node to be validated
         :return: validated node (possibly changed from original), or raises ValueError on failure to validate
         """
+        logger.debug("Validating node %s", self.name)
         node = super().validate(node)
         # If None, pass it back without further checks (missing optional node was not created)
         if node is None:
@@ -75,6 +79,9 @@ class TemplateNodeFixed(TemplateNodeBase):
                     node.add(new_value)
 
         if not self.optional and len(node.attributes) == 0:
+            logger.error(
+                "Mandatory node %s is missing, with no defaults set", self.name
+            )
             raise ValueError(
                 f"Mandatory node {node.get_path()} is missing, with no defaults set"
             )

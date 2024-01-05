@@ -1,7 +1,10 @@
 """ Configuration attribute class."""
+import logging
 from typing import Any, Optional
 
 from gconfiglib.config_abcs import ConfigAttributeABC, ConfigNodeABC
+
+logger = logging.getLogger(__name__)
 
 
 class ConfigAttribute(ConfigAttributeABC):
@@ -15,6 +18,7 @@ class ConfigAttribute(ConfigAttributeABC):
         self.name: str = name
         self.value: Any = value
         self.parent: Optional[ConfigNodeABC] = parent
+        logger.info("Created attribute %s: %s", self.name, self.value)
 
     def _set_parent(self, parent_node: ConfigNodeABC) -> None:
         self.parent = parent_node
@@ -32,8 +36,7 @@ class ConfigAttribute(ConfigAttributeABC):
         """
         if self.parent is None:
             return self.name
-        else:
-            return self.parent.get_path() + "/" + self.name
+        return self.parent.get_path() + "/" + self.name
 
     def __str__(self) -> str:
         """
