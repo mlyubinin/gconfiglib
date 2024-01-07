@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gconfiglib"
+version = "1.0.0"
+description = "General Configuration Validation Library"
+readme = "README.md"
+authors = [{ name = "Michael Lyubinin", email = "michael@lyubinin.com"}]
+license = { file = "LICENSE"}
+requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+keywords = ["config", "validate", "configuration", "zookeeper", "json", "ini"]
+dependencies = [
+    "kazoo>=2.9", 
+    "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+zk = ["kazoo>=2.9"]
+
+[project.scripts]
+cfgctl = "gconfiglib.config:main"
+
+[project.urls]
+Homepage = "https://github.com/mlyubinin/gconfiglib"
+
+[tool.bumpver]
+current_version = "1.0.0"
+version_pattern = "MAJOR.MINOR.PATCH"
+commit_message = "bump version {old_version} -> {new_version}"
+tag_message = "{new_version}"
+tag_scope = "default"
+pre_commit_hook = ""
+post_commit_hook = ""
+commit = true
+tag = true
+push = true
+
+[tool.bumpver.file_patterns]
+"pyproject.toml" = [
+    'current_version = "{version}"',
+    'version = "{version}"',
+]
+"README.md" = [
+    'Release v{version}'
+]
+
