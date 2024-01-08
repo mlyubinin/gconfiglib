@@ -9,6 +9,7 @@ import importlib
 import json
 import logging
 import os
+import sys
 from ast import literal_eval
 from types import ModuleType
 from typing import Callable, Type
@@ -28,7 +29,9 @@ def main() -> None:
     Configuration management utility wrapper - collects command-line arguments
     :return:
     """
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Gconfiglib configuration management utility"
+    )
     subparsers = parser.add_subparsers(dest="action")
     parser_ls = subparsers.add_parser("ls", help="List configuration content")
     parser_ls.add_argument(
@@ -59,6 +62,9 @@ def main() -> None:
         "source",
         help="file name or zookeeper uri (zookeeper://user:pwd@host:port/path)",
     )
+    if len(sys.argv) == 1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
     args: argparse.Namespace = parser.parse_args()
     cfgctl(args)
 
